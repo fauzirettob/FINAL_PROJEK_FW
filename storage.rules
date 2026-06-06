@@ -1,0 +1,42 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ─── FUNGSI BANTU ─────────────────────────────────────
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isValidImage() {
+      return request.resource.size < 5 * 1024 * 1024  // maks 5 MB
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // ─── ABSENSI FOTO ─────────────────────────────────────
+    // Folder absensi/ berisi foto-foto hasil absensi siswa.
+    // Hanya guru yang terautentikasi bisa mengakses.
+    match /absensi/{fileName} {
+
+      // Baca foto: boleh oleh semua guru yang login
+      allow read: if isAuthenticated();
+
+      // Upload foto: guru login + validasi ukuran & tipe file
+      allow create: if isAuthenticated()
+        && isValidImage();
+
+      // Update foto: guru login + validasi ukuran & tipe file
+      allow update: if isAuthenticated()
+        && isValidImage();
+
+      // Hapus foto: guru login
+      allow delete: if isAuthenticated();
+    }
+
+    // ─── DENY ─────────────────────────────────────────────
+    // Tolak semua akses ke folder lain yang tidak didefinisikan
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

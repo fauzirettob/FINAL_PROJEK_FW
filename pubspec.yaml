@@ -1,0 +1,48 @@
+name: absensi_siswa
+description: Aplikasi Absensi Siswa dengan Notifikasi WA
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # UI & Utils
+  cupertino_icons: ^1.0.2
+  google_fonts: ^8.1.0
+  intl: ^0.20.2
+  flutter_svg: ^2.0.9
+  
+  # State Management
+  provider: ^6.1.1
+  
+  # Firebase
+  firebase_core: ^4.9.0
+  firebase_auth: ^6.5.1
+  cloud_firestore: ^6.4.1
+  firebase_storage: ^13.4.1
+  
+  # Features
+  fl_chart: ^1.2.0
+  pdf: ^3.10.7
+  printing: ^5.11.1
+  http: ^1.1.2
+  image_picker: ^1.2.2
+  url_launcher: ^6.3.2
+  workmanager: ^0.9.0+3
+  shared_preferences: ^2.5.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  mockito: ^5.4.4
+  build_runner: ^2.4.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/

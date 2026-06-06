@@ -1,0 +1,2195 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Absensi Siswa - Live Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0f172a;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .demo-wrapper {
+      display: flex;
+      gap: 40px;
+      align-items: center;
+      max-width: 1200px;
+      width: 100%;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* === Phone Frame === */
+    .phone {
+      width: 375px;
+      height: 812px;
+      background: #1a1a2e;
+      border-radius: 50px;
+      padding: 16px;
+      box-shadow:
+        0 0 0 2px #2d2d44,
+        0 0 0 4px #0f0f1e,
+        0 20px 60px rgba(0,0,0,0.5),
+        inset 0 0 0 1px rgba(255,255,255,0.05);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .phone-notch {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 160px;
+      height: 30px;
+      background: #1a1a2e;
+      border-radius: 0 0 20px 20px;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .phone-notch::before {
+      content: '';
+      width: 10px;
+      height: 10px;
+      background: #2d2d44;
+      border-radius: 50%;
+    }
+    .phone-notch::after {
+      content: '';
+      width: 50px;
+      height: 6px;
+      background: #1a1a2e;
+      border: 1px solid #2d2d44;
+      border-radius: 10px;
+    }
+
+    .phone-screen {
+      width: 100%;
+      height: 100%;
+      background: #f5f7fb;
+      border-radius: 34px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* === Screen Container === */
+    .screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      transform: scale(0.95);
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    .screen::-webkit-scrollbar { width: 3px; }
+    .screen::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 10px; }
+
+    .screen.active {
+      opacity: 1;
+      pointer-events: all;
+      transform: scale(1);
+    }
+
+    .screen.slide-left {
+      transform: translateX(30px);
+      opacity: 0;
+    }
+    .screen.slide-right {
+      transform: translateX(-30px);
+      opacity: 0;
+    }
+
+    /* === Status Bar === */
+    .status-bar {
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #1e2937;
+      background: transparent;
+    }
+    .status-bar.white-text { color: #fff; }
+
+    /* === Common Components === */
+    .app-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px 12px;
+      position: relative;
+    }
+    .app-bar .title {
+      font-weight: 600;
+      font-size: 17px;
+      color: #1e2937;
+    }
+    .app-bar .back-btn {
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: rgba(0,0,0,0.05);
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #1e2937;
+      font-size: 18px;
+      transition: background 0.2s;
+    }
+    .app-bar .back-btn:hover { background: rgba(0,0,0,0.1); }
+    .app-bar .right-btn {
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: transparent;
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #6b7b8c;
+      font-size: 20px;
+      transition: background 0.2s;
+    }
+    .app-bar .right-btn:hover { background: rgba(0,0,0,0.05); }
+
+    /* === Splash Screen === */
+    #splash {
+      background: linear-gradient(135deg, #26A269, #1AA3E6);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    #splash .splash-logo {
+      width: 100px;
+      height: 100px;
+      background: rgba(255,255,255,0.2);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      color: #fff;
+      margin-bottom: 24px;
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.08); }
+    }
+    #splash h1 {
+      color: #fff;
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    #splash p {
+      color: rgba(255,255,255,0.85);
+      font-size: 15px;
+      margin-bottom: 40px;
+    }
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* === Login Screen === */
+    #login {
+      background: #f5f7fb;
+    }
+    .login-content {
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      height: calc(100% - 44px);
+      justify-content: center;
+    }
+    .login-content .app-title {
+      text-align: center;
+      font-size: 26px;
+      font-weight: 800;
+      color: #26A269;
+      margin-bottom: 32px;
+    }
+    .input-group {
+      margin-bottom: 14px;
+    }
+    .input-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: #1e2937;
+      margin-bottom: 6px;
+    }
+    .input-field {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid #dde3eb;
+      border-radius: 14px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      background: #fff;
+      color: #1e2937;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .input-field:focus { border-color: #26A269; }
+    .input-field::placeholder { color: #94a3b3; }
+
+    .btn-primary {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 14px;
+      font-family: 'Inter', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, #26A269, #1AA3E6);
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn-primary:hover { opacity: 0.92; }
+    .btn-primary:active { transform: scale(0.97); }
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .auth-link {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 13px;
+      color: #6b7b8c;
+    }
+    .auth-link a {
+      color: #26A269;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .auth-link a:hover { text-decoration: underline; }
+
+    /* === Bottom Navigation === */
+    .bottom-nav {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 70px;
+      background: #fff;
+      border-top: 1px solid #eef2f6;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      padding-bottom: 8px;
+      z-index: 50;
+    }
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      cursor: pointer;
+      border: none;
+      background: none;
+      padding: 4px 8px;
+      font-family: 'Inter', sans-serif;
+      color: #6b7b8c;
+      transition: color 0.2s;
+      position: relative;
+    }
+    .nav-item .nav-icon {
+      font-size: 22px;
+      transition: transform 0.2s;
+    }
+    .nav-item .nav-label {
+      font-size: 10px;
+      font-weight: 500;
+    }
+    .nav-item.active {
+      color: #26A269;
+    }
+    .nav-item.active .nav-icon {
+      transform: scale(1.05);
+    }
+    .nav-item:hover { color: #26A269; }
+
+    /* === Home Screen === */
+    .scroll-content {
+      height: calc(100% - 114px);
+      overflow-y: auto;
+      padding: 0 16px 16px;
+    }
+    .scroll-content::-webkit-scrollbar { width: 3px; }
+    .scroll-content::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
+
+    .header-gradient {
+      background: linear-gradient(135deg, #26A269, #1AA3E6);
+      border-radius: 0 0 32px 32px;
+      padding: 16px 20px 20px;
+      margin: 0 -16px 20px;
+    }
+    .header-gradient .greeting {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: rgba(255,255,255,0.75);
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+    .header-gradient .greeting .icon-btn {
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: transparent;
+      color: #fff;
+      font-size: 20px;
+      cursor: pointer;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .header-gradient .greeting .icon-btn:hover { background: rgba(255,255,255,0.1); }
+    .header-gradient .teacher-name {
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 14px;
+    }
+
+    .attendance-card {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .attendance-card .left .label {
+      color: rgba(255,255,255,0.7);
+      font-size: 11px;
+    }
+    .attendance-card .left .percent {
+      color: #fff;
+      font-size: 26px;
+      font-weight: 800;
+      margin: 2px 0;
+    }
+    .attendance-card .left .total {
+      color: rgba(255,255,255,0.55);
+      font-size: 10px;
+    }
+    .attendance-card .right {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .mini-stat {
+      text-align: center;
+    }
+    .mini-stat .val {
+      color: #4ade80;
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .mini-stat .val.orange { color: #fb923c; }
+    .mini-stat .lbl {
+      color: rgba(255,255,255,0.5);
+      font-size: 9px;
+    }
+
+    .section-title {
+      font-weight: 700;
+      font-size: 15px;
+      color: #1e2937;
+      margin-bottom: 12px;
+    }
+
+    .stat-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      flex: 1;
+      background: #fff;
+      border: 1px solid #dde3eb;
+      border-radius: 16px;
+      padding: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .stat-card .icon-box {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    .stat-card .info .num {
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .stat-card .info .lbl {
+      font-size: 10px;
+      color: #6b7b8c;
+    }
+
+    .quick-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .quick-action {
+      background: #fff;
+      border: 1px solid #dde3eb;
+      border-radius: 16px;
+      padding: 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .quick-action:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    }
+    .quick-action:active { transform: scale(0.95); }
+    .quick-action .qa-icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      margin: 0 auto 8px;
+    }
+    .quick-action .qa-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #1e2937;
+    }
+
+    /* Filter chips */
+    .chip-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .chip-row::-webkit-scrollbar { height: 2px; }
+    .chip-row::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
+    .chip {
+      padding: 7px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      border: 1px solid #dde3eb;
+      background: #fff;
+      color: #1e2937;
+      transition: all 0.2s;
+    }
+    .chip.active {
+      background: #26A269;
+      color: #fff;
+      border-color: #26A269;
+    }
+
+    /* Status pills */
+    .status-pill-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .status-pill {
+      flex: 1;
+      text-align: center;
+      padding: 8px 0;
+      border-radius: 10px;
+      border: 1px solid rgba(0,0,0,0.08);
+    }
+    .status-pill .sp-val {
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .status-pill .sp-lbl {
+      font-size: 9px;
+      font-weight: 500;
+    }
+
+    .info-banner {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 500;
+      margin-bottom: 12px;
+    }
+    .info-banner.warning {
+      background: rgba(245,158,11,0.1);
+      color: #f59e0b;
+    }
+
+    /* Student list card */
+    .student-card {
+      background: #fff;
+      border: 1px solid #dde3eb;
+      border-radius: 16px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+      transition: transform 0.15s;
+      cursor: default;
+    }
+    .student-card .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(38,162,105,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: #26A269;
+    }
+    .student-card .info {
+      flex: 1;
+    }
+    .student-card .info .name {
+      font-weight: 600;
+      font-size: 13px;
+      color: #1e2937;
+    }
+    .student-card .info .detail {
+      font-size: 11px;
+      color: #6b7b8c;
+    }
+    .student-card .badge {
+      padding: 5px 10px;
+      border-radius: 8px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .student-card .badge.hadir { background: rgba(34,197,94,0.12); color: #22c55e; border: 1px solid rgba(34,197,94,0.2); }
+    .student-card .badge.izin { background: rgba(26,163,230,0.12); color: #1AA3E6; border: 1px solid rgba(26,163,230,0.2); }
+    .student-card .badge.sakit { background: rgba(245,158,11,0.12); color: #f59e0b; border: 1px solid rgba(245,158,11,0.2); }
+    .student-card .badge.alpa { background: rgba(239,68,68,0.12); color: #ef4444; border: 1px solid rgba(239,68,68,0.2); }
+    .student-card .badge.belum { background: rgba(107,123,140,0.1); color: #6b7b8c; border: 1px solid rgba(107,123,140,0.15); }
+
+    .btn-outline {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid rgba(38,162,105,0.3);
+      border-radius: 16px;
+      background: transparent;
+      color: #26A269;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    .btn-outline:hover { background: rgba(38,162,105,0.05); }
+
+    /* === Scan Screen === */
+    .scan-content {
+      padding: 20px 16px;
+      height: calc(100% - 44px);
+      overflow-y: auto;
+    }
+    .camera-area {
+      width: 100%;
+      height: 200px;
+      background: #fff;
+      border: 1px solid #dde3eb;
+      border-radius: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      margin-bottom: 16px;
+      transition: all 0.3s;
+    }
+    .camera-area:hover { border-color: #26A269; }
+    .camera-area .cam-icon {
+      width: 70px;
+      height: 70px;
+      background: rgba(38,162,105,0.08);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 34px;
+      color: #26A269;
+      margin-bottom: 10px;
+    }
+    .camera-area .cam-label {
+      font-weight: 600;
+      font-size: 14px;
+      color: #1e2937;
+    }
+    .camera-area .cam-hint {
+      font-size: 12px;
+      color: #6b7b8c;
+      margin-top: 2px;
+    }
+    .camera-area.has-photo {
+      background: linear-gradient(135deg, #1e2937, #0f172a);
+      color: #fff;
+      position: relative;
+    }
+    .camera-area.has-photo .cam-icon {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+    }
+    .camera-area.has-photo .cam-label { color: #fff; }
+    .camera-area.has-photo .cam-hint { color: rgba(255,255,255,0.6); }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin: 16px 0;
+    }
+    .status-btn {
+      padding: 12px;
+      border-radius: 16px;
+      border: 1px solid #dde3eb;
+      background: #fff;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Inter', sans-serif;
+    }
+    .status-btn .sb-icon { font-size: 22px; margin-bottom: 2px; }
+    .status-btn .sb-label { font-size: 12px; font-weight: 500; color: #1e2937; }
+    .status-btn.active {
+      border-width: 2px;
+    }
+    .status-btn.active.hadir { background: rgba(34,197,94,0.1); border-color: #22c55e; }
+    .status-btn.active.hadir .sb-icon { color: #22c55e; }
+    .status-btn.active.hadir .sb-label { color: #22c55e; font-weight: 700; }
+    .status-btn.active.izin { background: rgba(26,163,230,0.1); border-color: #1AA3E6; }
+    .status-btn.active.izin .sb-icon { color: #1AA3E6; }
+    .status-btn.active.izin .sb-label { color: #1AA3E6; font-weight: 700; }
+    .status-btn.active.sakit { background: rgba(245,158,11,0.1); border-color: #f59e0b; }
+    .status-btn.active.sakit .sb-icon { color: #f59e0b; }
+    .status-btn.active.sakit .sb-label { color: #f59e0b; font-weight: 700; }
+    .status-btn.active.alpa { background: rgba(239,68,68,0.1); border-color: #ef4444; }
+    .status-btn.active.alpa .sb-icon { color: #ef4444; }
+    .status-btn.active.alpa .sb-label { color: #ef4444; font-weight: 700; }
+
+    /* === Student Screen === */
+    .student-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #eef2f6;
+      cursor: pointer;
+    }
+    .student-item:last-child { border-bottom: none; }
+    .student-item .s-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #26A269, #1AA3E6);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .student-item .s-info { flex: 1; }
+    .student-item .s-info .s-name { font-weight: 600; font-size: 14px; }
+    .student-item .s-info .s-meta { font-size: 12px; color: #6b7b8c; }
+    .student-item .s-info .s-cat {
+      display: inline-block;
+      margin-top: 4px;
+      padding: 2px 8px;
+      background: rgba(38,162,105,0.08);
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #26A269;
+    }
+
+    .fab {
+      position: absolute;
+      bottom: 80px;
+      right: 16px;
+      border: none;
+      background: #26A269;
+      color: #fff;
+      padding: 14px 20px;
+      border-radius: 30px;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(38,162,105,0.3);
+      transition: transform 0.15s, box-shadow 0.15s;
+      z-index: 40;
+    }
+    .fab:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(38,162,105,0.4); }
+    .fab:active { transform: scale(0.95); }
+
+    /* === Reports Screen === */
+    .report-summary {
+      background: linear-gradient(135deg, #26A269, #1AA3E6);
+      border-radius: 20px;
+      padding: 24px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .report-summary .rs-label { color: rgba(255,255,255,0.7); font-size: 12px; margin-bottom: 6px; }
+    .report-summary .rs-percent { color: #fff; font-size: 32px; font-weight: 800; }
+    .report-summary .rs-total { color: rgba(255,255,255,0.6); font-size: 12px; margin-top: 4px; }
+
+    .chart-area {
+      background: #fff;
+      border: 1px solid #dde3eb;
+      border-radius: 20px;
+      padding: 16px;
+      margin-bottom: 20px;
+      height: 160px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-around;
+    }
+    .bar {
+      width: 28px;
+      border-radius: 6px 6px 0 0;
+      transition: height 0.6s ease;
+      position: relative;
+    }
+    .bar .bar-label {
+      position: absolute;
+      bottom: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      color: #6b7b8c;
+      white-space: nowrap;
+    }
+
+    /* === Profile Screen === */
+    .profile-header {
+      background: linear-gradient(135deg, #26A269, #1AA3E6);
+      border-radius: 24px;
+      padding: 24px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .profile-header .p-avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      font-weight: 700;
+      color: #fff;
+      margin: 0 auto 12px;
+    }
+    .profile-header .p-name { color: #fff; font-size: 20px; font-weight: 700; }
+    .profile-header .p-email { color: rgba(255,255,255,0.65); font-size: 13px; }
+
+    .profile-info {
+      background: #fff;
+      border: 1px solid #dde3eb;
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 8px;
+    }
+    .profile-info .pi-icon {
+      width: 42px;
+      height: 42px;
+      background: rgba(38,162,105,0.08);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: #26A269;
+    }
+    .profile-info .pi-text { flex: 1; }
+    .profile-info .pi-text .pi-label { font-size: 11px; color: #6b7b8c; }
+    .profile-info .pi-text .pi-value { font-weight: 600; font-size: 14px; color: #1e2937; }
+
+    .btn-logout {
+      width: 100%;
+      padding: 14px;
+      border: 1px solid rgba(239,68,68,0.2);
+      border-radius: 16px;
+      background: rgba(239,68,68,0.05);
+      color: #ef4444;
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+      margin-top: 20px;
+    }
+    .btn-logout:hover { background: rgba(239,68,68,0.1); }
+
+    /* === Parent Login === */
+    .parent-login-icon {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #26A269, #1AA3E6);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 38px;
+      color: #fff;
+      margin: 0 auto 16px;
+      box-shadow: 0 8px 24px rgba(38,162,105,0.25);
+    }
+
+    /* === Modal / Dialog === */
+    .modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.4);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      backdrop-filter: blur(4px);
+    }
+    .modal-overlay.show { display: flex; }
+    .modal-box {
+      background: #fff;
+      border-radius: 24px;
+      padding: 24px;
+      width: 100%;
+      max-width: 320px;
+      animation: modalIn 0.25s ease;
+    }
+    @keyframes modalIn {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .modal-box h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .modal-box p { font-size: 14px; color: #6b7b8c; margin-bottom: 16px; }
+    .modal-box .modal-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      margin: 0 auto 12px;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+    }
+    .modal-actions .btn-secondary {
+      flex: 1;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid #dde3eb;
+      background: #fff;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #6b7b8c;
+    }
+    .modal-actions .btn-danger {
+      flex: 1;
+      padding: 12px;
+      border-radius: 12px;
+      border: none;
+      background: #ef4444;
+      color: #fff;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* === Side Info Panel === */
+    .info-panel {
+      background: #1e2937;
+      border-radius: 24px;
+      padding: 32px;
+      max-width: 400px;
+      color: #e2e8f0;
+      flex: 1;
+      min-width: 280px;
+    }
+    .info-panel h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .info-panel .subtitle {
+      color: #94a3b8;
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+    .info-panel .step {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .info-panel .step .num {
+      width: 32px;
+      height: 32px;
+      background: rgba(38,162,105,0.2);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      color: #26A269;
+      flex-shrink: 0;
+    }
+    .info-panel .step .text h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 2px;
+    }
+    .info-panel .step .text p {
+      font-size: 12px;
+      color: #94a3b8;
+      line-height: 1.4;
+    }
+    .info-panel .nav-hint {
+      margin-top: 20px;
+      padding: 14px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 14px;
+      font-size: 13px;
+      color: #94a3b8;
+    }
+    .info-panel .nav-hint strong {
+      color: #26A269;
+    }
+    .info-panel .screen-indicator {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .info-panel .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      transition: all 0.3s;
+    }
+    .info-panel .dot.active {
+      background: #26A269;
+      width: 24px;
+      border-radius: 4px;
+    }
+    .info-panel .screen-label {
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 16px;
+      min-height: 20px;
+    }
+
+    /* Toast */
+    .toast {
+      position: absolute;
+      bottom: 80px;
+      left: 16px;
+      right: 16px;
+      background: #1e2937;
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 13px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      z-index: 300;
+      animation: toastIn 0.3s ease;
+    }
+    .toast.show { display: flex; }
+    @keyframes toastIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Scrollbar for phone */
+    .phone-screen > .screen::-webkit-scrollbar { width: 3px; }
+    .phone-screen > .screen::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 10px; }
+
+    .title-bar {
+      display: flex;
+      align-items: center;
+      padding: 8px 16px 4px;
+      gap: 8px;
+    }
+    .title-bar .tb-title {
+      font-weight: 600;
+      font-size: 16px;
+      color: #1e2937;
+      flex: 1;
+    }
+    .title-bar .tb-btn {
+      width: 36px;
+      height: 36px;
+      border: none;
+      background: transparent;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #6b7b8c;
+      font-size: 20px;
+    }
+    .title-bar .tb-btn:hover { background: rgba(0,0,0,0.05); }
+
+    .dropdown-select {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid #dde3eb;
+      border-radius: 14px;
+      background: #fff;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      color: #1e2937;
+      outline: none;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+
+    /* Responsive */
+    @media (max-width: 820px) {
+      .demo-wrapper { flex-direction: column; }
+      .info-panel { max-width: 375px; }
+    }
+    @media (max-width: 420px) {
+      .phone { width: 340px; height: 740px; border-radius: 40px; padding: 12px; }
+      .phone-screen { border-radius: 28px; }
+      .phone-notch { width: 130px; }
+      .header-gradient { border-radius: 0 0 24px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="demo-wrapper">
+  <!-- PHONE FRAME -->
+  <div class="phone">
+    <div class="phone-notch"></div>
+    <div class="phone-screen" id="phoneScreen">
+
+      <!-- ========== SPLASH ========== -->
+      <div class="screen active" id="splash">
+        <div class="splash-logo">🎓</div>
+        <h1>Absensi Siswa</h1>
+        <p>Catat kehadiran dengan mudah</p>
+        <div class="spinner"></div>
+      </div>
+
+      <!-- ========== LOGIN ========== -->
+      <div class="screen" id="login">
+        <div class="status-bar"></div>
+        <div class="login-content">
+          <div class="app-title">Absensi Siswa</div>
+          <div class="input-group">
+            <label>Email Guru</label>
+            <input class="input-field" type="email" placeholder="guru@sekolah.sch.id" value="budi@sekolah.sch.id">
+          </div>
+          <div class="input-group">
+            <label>Password</label>
+            <input class="input-field" type="password" placeholder="••••••••" value="password123">
+          </div>
+          <button class="btn-primary" onclick="navigateTo('home')" style="margin-top:16px;">Login</button>
+          <div class="auth-link" style="margin-top:12px;">
+            Belum punya akun? <a onclick="showToast('Fitur registrasi tersedia di aplikasi asli')">Daftar Guru</a>
+          </div>
+          <div class="auth-link" style="margin-top:8px;">
+            <a onclick="navigateTo('parent-login')">👨‍👩‍👧‍👦 Akses Orang Tua</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== PARENT LOGIN ========== -->
+      <div class="screen" id="parent-login">
+        <div class="status-bar"></div>
+        <div class="login-content">
+          <div class="parent-login-icon">👨‍👩‍👧</div>
+          <div style="text-align:center;margin-bottom:20px;">
+            <div style="font-size:20px;font-weight:700;color:#1e2937;">Akses Orang Tua</div>
+            <div style="font-size:13px;color:#6b7b8c;margin-top:4px;">Masuk untuk mengirim keluhan<br>atau informasi putra/i Anda</div>
+          </div>
+          <div class="input-group">
+            <label>Nomor HP</label>
+            <input class="input-field" type="tel" placeholder="08123456789" value="08123456789">
+          </div>
+          <div class="input-group">
+            <label>PIN</label>
+            <input class="input-field" type="password" placeholder="Masukkan PIN" value="1234">
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:rgba(26,163,230,0.07);border-radius:10px;margin:8px 0 16px;font-size:11px;color:#6b7b8c;">
+            <span style="color:#1AA3E6;font-size:14px;">ℹ️</span>
+            PIN diperoleh dari pihak sekolah. Hubungi guru untuk mendapatkan akses.
+          </div>
+          <button class="btn-primary" onclick="navigateTo('parent-keluhan')">Masuk</button>
+          <div class="auth-link" style="margin-top:16px;">
+            <a onclick="navigateTo('login')">← Kembali ke halaman guru</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== HOME (Main Shell) ========== -->
+      <div class="screen" id="home">
+        <div class="status-bar"></div>
+        <div class="scroll-content" style="height:calc(100% - 70px);">
+          <div class="header-gradient">
+            <div class="greeting">
+              <span>Selamat Pagi 👋</span>
+              <button class="icon-btn" onclick="showToast('Notifikasi')">🔔</button>
+            </div>
+            <div class="teacher-name">Bpk. Budi Santoso</div>
+            <div class="attendance-card">
+              <div class="left">
+                <div class="label">Kehadiran Hari Ini</div>
+                <div class="percent">85%</div>
+                <div class="total">20 siswa</div>
+              </div>
+              <div class="right">
+                <div class="mini-stat">
+                  <div class="val">17</div>
+                  <div class="lbl">H</div>
+                </div>
+                <div class="mini-stat">
+                  <div class="val orange">3</div>
+                  <div class="lbl">T</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="stat-row">
+            <div class="stat-card">
+              <div class="icon-box" style="background:rgba(26,163,230,0.1);color:#1AA3E6;">👥</div>
+              <div class="info">
+                <div class="num" style="color:#1AA3E6;">32</div>
+                <div class="lbl">Total Siswa</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="icon-box" style="background:rgba(38,162,105,0.1);color:#26A269;">✅</div>
+              <div class="info">
+                <div class="num" style="color:#26A269;">156</div>
+                <div class="lbl">Total Absensi</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-title">Akses Cepat</div>
+          <div class="quick-actions">
+            <div class="quick-action" onclick="navigateTo('scan')">
+              <div class="qa-icon" style="background:rgba(34,197,94,0.1);color:#22c55e;">📷</div>
+              <div class="qa-label">Absensi</div>
+            </div>
+            <div class="quick-action" onclick="navigateTo('students')">
+              <div class="qa-icon" style="background:rgba(26,163,230,0.1);color:#1AA3E6;">👥</div>
+              <div class="qa-label">Data Siswa</div>
+            </div>
+            <div class="quick-action" onclick="navigateTo('reports')">
+              <div class="qa-icon" style="background:rgba(245,158,11,0.1);color:#f59e0b;">📊</div>
+              <div class="qa-label">Laporan</div>
+            </div>
+            <div class="quick-action" onclick="navigateTo('history')">
+              <div class="qa-icon" style="background:rgba(128,90,213,0.1);color:#7c3aed;">📜</div>
+              <div class="qa-label">Riwayat</div>
+            </div>
+          </div>
+
+          <div class="section-title">Daftar Hadir Hari Ini</div>
+          <div class="chip-row">
+            <div class="chip active" onclick="selectChip(this,'Semua Kelas')">Semua Kelas</div>
+            <div class="chip" onclick="selectChip(this,'X-A')">X-A</div>
+            <div class="chip" onclick="selectChip(this,'X-B')">X-B</div>
+            <div class="chip" onclick="selectChip(this,'XI-A')">XI-A</div>
+            <div class="chip" onclick="selectChip(this,'XI-B')">XI-B</div>
+          </div>
+
+          <div class="status-pill-row">
+            <div class="status-pill" style="border-color:rgba(34,197,94,0.2);">
+              <div class="sp-val" style="color:#22c55e;">17</div>
+              <div class="sp-lbl" style="color:#22c55e;">Hadir</div>
+            </div>
+            <div class="status-pill" style="border-color:rgba(26,163,230,0.2);">
+              <div class="sp-val" style="color:#1AA3E6;">1</div>
+              <div class="sp-lbl" style="color:#1AA3E6;">Izin</div>
+            </div>
+            <div class="status-pill" style="border-color:rgba(245,158,11,0.2);">
+              <div class="sp-val" style="color:#f59e0b;">1</div>
+              <div class="sp-lbl" style="color:#f59e0b;">Sakit</div>
+            </div>
+            <div class="status-pill" style="border-color:rgba(239,68,68,0.2);">
+              <div class="sp-val" style="color:#ef4444;">1</div>
+              <div class="sp-lbl" style="color:#ef4444;">Alpa</div>
+            </div>
+          </div>
+
+          <div class="info-banner warning">
+            ⚠️ 3 siswa belum melakukan absensi
+          </div>
+
+          <div class="student-card">
+            <div class="avatar">A</div>
+            <div class="info">
+              <div class="name">Ahmad Fauzi</div>
+              <div class="detail">X-A • Reguler</div>
+            </div>
+            <div class="badge hadir">Hadir</div>
+          </div>
+          <div class="student-card">
+            <div class="avatar">S</div>
+            <div class="info">
+              <div class="name">Siti Nurhaliza</div>
+              <div class="detail">X-A • Reguler</div>
+            </div>
+            <div class="badge hadir">Hadir</div>
+          </div>
+          <div class="student-card">
+            <div class="avatar">B</div>
+            <div class="info">
+              <div class="name">Budi Prasetyo</div>
+              <div class="detail">X-A • Reguler</div>
+            </div>
+            <div class="badge izin">Izin</div>
+          </div>
+          <div class="student-card">
+            <div class="avatar">D</div>
+            <div class="info">
+              <div class="name">Dewi Sartika</div>
+              <div class="detail">X-B • Reguler</div>
+            </div>
+            <div class="badge sakit">Sakit</div>
+          </div>
+          <div class="student-card">
+            <div class="avatar">R</div>
+            <div class="info">
+              <div class="name">Rudi Hartono</div>
+              <div class="detail">X-B • Reguler</div>
+            </div>
+            <div class="badge alpa">Alpa</div>
+          </div>
+          <div class="student-card">
+            <div class="avatar">M</div>
+            <div class="info">
+              <div class="name">Maya Indah</div>
+              <div class="detail">X-A • Reguler</div>
+            </div>
+            <div class="badge belum">Belum Absen</div>
+          </div>
+          <div class="student-card">
+            <div class="avatar">F</div>
+            <div class="info">
+              <div class="name">Farhan Kurniawan</div>
+              <div class="detail">X-B • Ekstrakurikuler</div>
+            </div>
+            <div class="badge belum">Belum Absen</div>
+          </div>
+          <div class="student-card">
+            <div class="avatar">I</div>
+            <div class="info">
+              <div class="name">Intan Permata Sari</div>
+              <div class="detail">XI-A • Reguler</div>
+            </div>
+            <div class="badge belum">Belum Absen</div>
+          </div>
+
+          <button class="btn-outline" style="margin-top:8px;" onclick="navigateTo('history')">
+            📋 Lihat Riwayat Lengkap
+          </button>
+          <div style="height:20px;"></div>
+        </div>
+
+        <!-- Bottom Nav -->
+        <div class="bottom-nav">
+          <button class="nav-item active" onclick="navigateTo('home')">
+            <span class="nav-icon">🏠</span>
+            <span class="nav-label">Beranda</span>
+          </button>
+          <button class="nav-item" onclick="navigateTo('scan')">
+            <span class="nav-icon">📷</span>
+            <span class="nav-label">Absensi</span>
+          </button>
+          <button class="nav-item" onclick="navigateTo('students')">
+            <span class="nav-icon">👥</span>
+            <span class="nav-label">Siswa</span>
+          </button>
+          <button class="nav-item" onclick="navigateTo('reports')">
+            <span class="nav-icon">📊</span>
+            <span class="nav-label">Laporan</span>
+          </button>
+          <button class="nav-item" onclick="navigateTo('profile')">
+            <span class="nav-icon">👤</span>
+            <span class="nav-label">Profil</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ========== SCAN / ABSENSI ========== -->
+      <div class="screen" id="scan">
+        <div class="status-bar"></div>
+        <div class="title-bar">
+          <button class="tb-btn" onclick="navigateTo('home')">←</button>
+          <div class="tb-title">Absensi Foto</div>
+        </div>
+        <div class="scan-content" style="height:calc(100% - 84px);">
+          <div class="camera-area" onclick="takePhoto(this)">
+            <div class="cam-icon" id="camIcon">📸</div>
+            <div class="cam-label" id="camLabel">Ambil Foto Siswa</div>
+            <div class="cam-hint" id="camHint">Ketuk untuk membuka kamera</div>
+          </div>
+
+          <select class="dropdown-select">
+            <option>Pilih Kategori</option>
+            <option selected>Reguler</option>
+            <option>Ekstrakurikuler</option>
+            <option>Pramuka</option>
+          </select>
+
+          <div style="background:#fff;border:1px solid #dde3eb;border-radius:16px;padding:12px;margin-bottom:16px;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:13px;font-weight:600;">
+              👤 Siswa Reguler (12)
+            </div>
+            <div style="max-height:140px;overflow-y:auto;">
+              <div class="student-item" onclick="selectStudent(this,'12345')">
+                <div class="s-avatar">A</div>
+                <div class="s-info">
+                  <div class="s-name">Ahmad Fauzi</div>
+                  <div class="s-meta">12345 • X-A</div>
+                </div>
+              </div>
+              <div class="student-item" onclick="selectStudent(this,'12346')" style="background:rgba(38,162,105,0.06);border-radius:10px;padding:12px;">
+                <div class="s-avatar">S</div>
+                <div class="s-info">
+                  <div class="s-name" style="color:#26A269;">Siti Nurhaliza</div>
+                  <div class="s-meta">12346 • X-A</div>
+                </div>
+                <span style="color:#22c55e;font-size:16px;">✓</span>
+              </div>
+              <div class="student-item" onclick="selectStudent(this,'12347')">
+                <div class="s-avatar">B</div>
+                <div class="s-info">
+                  <div class="s-name">Budi Prasetyo</div>
+                  <div class="s-meta">12347 • X-A</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label>NIS Siswa</label>
+            <input class="input-field" type="text" placeholder="Masukkan NIS" value="12346" style="background:#f5f7fb;">
+          </div>
+
+          <label style="font-size:13px;font-weight:500;color:#1e2937;display:block;margin:8px 0 4px;">Status Kehadiran</label>
+          <div class="status-grid">
+            <div class="status-btn active hadir" onclick="selectStatus(this,'hadir')">
+              <div class="sb-icon">✅</div>
+              <div class="sb-label">Hadir</div>
+            </div>
+            <div class="status-btn izin" onclick="selectStatus(this,'izin')">
+              <div class="sb-icon">📋</div>
+              <div class="sb-label">Izin</div>
+            </div>
+            <div class="status-btn sakit" onclick="selectStatus(this,'sakit')">
+              <div class="sb-icon">🤒</div>
+              <div class="sb-label">Sakit</div>
+            </div>
+            <div class="status-btn alpa" onclick="selectStatus(this,'alpa')">
+              <div class="sb-icon">❌</div>
+              <div class="sb-label">Alpa</div>
+            </div>
+          </div>
+
+          <button class="btn-primary" onclick="submitAbsensi()" style="margin-top:8px;">
+            ✅ Simpan Absensi
+          </button>
+        </div>
+      </div>
+
+      <!-- ========== STUDENTS ========== -->
+      <div class="screen" id="students">
+        <div class="status-bar"></div>
+        <div class="title-bar">
+          <button class="tb-btn" onclick="navigateTo('home')">←</button>
+          <div class="tb-title">Data Siswa</div>
+          <button class="tb-btn" style="color:#25D366;" title="Kirim Notifikasi" onclick="showToast('Notifikasi WhatsApp dikirim ke 12 orang tua')">📤</button>
+        </div>
+        <div style="padding:8px 16px 0;">
+          <input class="input-field" type="text" placeholder="Cari siswa..." oninput="filterStudents(this.value)" style="background:#f5f7fb;">
+        </div>
+        <div style="padding:8px 16px;">
+          <select class="dropdown-select" onchange="filterByClass(this.value)">
+            <option value="">Semua Kelas</option>
+            <option>X-A</option>
+            <option>X-B</option>
+            <option>XI-A</option>
+            <option>XI-B</option>
+          </select>
+        </div>
+        <div style="padding:0 16px;height:calc(100% - 230px);overflow-y:auto;" id="studentList">
+          <div class="student-item">
+            <div class="s-avatar">A</div>
+            <div class="s-info">
+              <div class="s-name">Ahmad Fauzi</div>
+              <div class="s-meta">12345 • X-A</div>
+              <div class="s-cat">Reguler</div>
+            </div>
+            <button class="tb-btn" style="color:#25D366;" onclick="showToast('Membuka WhatsApp...')">💬</button>
+          </div>
+          <div class="student-item">
+            <div class="s-avatar">S</div>
+            <div class="s-info">
+              <div class="s-name">Siti Nurhaliza</div>
+              <div class="s-meta">12346 • X-A</div>
+              <div class="s-cat">Reguler</div>
+            </div>
+            <button class="tb-btn" style="color:#25D366;" onclick="showToast('Membuka WhatsApp...')">💬</button>
+          </div>
+          <div class="student-item">
+            <div class="s-avatar">B</div>
+            <div class="s-info">
+              <div class="s-name">Budi Prasetyo</div>
+              <div class="s-meta">12347 • X-A</div>
+              <div class="s-cat">Reguler</div>
+            </div>
+            <button class="tb-btn" style="color:#25D366;" onclick="showToast('Membuka WhatsApp...')">💬</button>
+          </div>
+          <div class="student-item">
+            <div class="s-avatar">D</div>
+            <div class="s-info">
+              <div class="s-name">Dewi Sartika</div>
+              <div class="s-meta">12348 • X-B</div>
+              <div class="s-cat">Reguler</div>
+            </div>
+            <button class="tb-btn" style="color:#25D366;" onclick="showToast('Membuka WhatsApp...')">💬</button>
+          </div>
+          <div class="student-item">
+            <div class="s-avatar">R</div>
+            <div class="s-info">
+              <div class="s-name">Rudi Hartono</div>
+              <div class="s-meta">12349 • X-B</div>
+              <div class="s-cat">Reguler</div>
+            </div>
+            <button class="tb-btn" style="color:#25D366;" onclick="showToast('Membuka WhatsApp...')">💬</button>
+          </div>
+          <div class="student-item">
+            <div class="s-avatar">M</div>
+            <div class="s-info">
+              <div class="s-name">Maya Indah</div>
+              <div class="s-meta">12350 • X-A</div>
+              <div class="s-cat">Reguler</div>
+            </div>
+            <button class="tb-btn" style="color:#25D366;" onclick="showToast('Membuka WhatsApp...')">💬</button>
+          </div>
+          <div class="student-item">
+            <div class="s-avatar">F</div>
+            <div class="s-info">
+              <div class="s-name">Farhan Kurniawan</div>
+              <div class="s-meta">12351 • X-B</div>
+              <div class="s-cat">Ekstrakurikuler</div>
+            </div>
+            <button class="tb-btn" style="color:#25D366;" onclick="showToast('Membuka WhatsApp...')">💬</button>
+          </div>
+        </div>
+        <button class="fab" onclick="showModal('tambahSiswa')">➕ Tambah Siswa</button>
+      </div>
+
+      <!-- ========== REPORTS ========== -->
+      <div class="screen" id="reports">
+        <div class="status-bar"></div>
+        <div class="title-bar">
+          <button class="tb-btn" onclick="navigateTo('home')">←</button>
+          <div class="tb-title">Laporan</div>
+        </div>
+        <div class="scan-content" style="height:calc(100% - 84px);">
+          <select class="dropdown-select">
+            <option>Semua Kategori</option>
+            <option>Reguler</option>
+            <option>Ekstrakurikuler</option>
+            <option>Pramuka</option>
+          </select>
+
+          <div class="report-summary">
+            <div class="rs-label">Kehadiran Bulan Ini</div>
+            <div class="rs-percent">85.0%</div>
+            <div class="rs-total">156 siswa tercatat</div>
+          </div>
+
+          <div class="chart-area" id="chartArea">
+            <div class="bar" style="height:80px;background:#26A269;">
+              <div class="bar-label">Sen</div>
+            </div>
+            <div class="bar" style="height:110px;background:#1AA3E6;">
+              <div class="bar-label">Sel</div>
+            </div>
+            <div class="bar" style="height:60px;background:#22c55e;">
+              <div class="bar-label">Rab</div>
+            </div>
+            <div class="bar" style="height:130px;background:#26A269;">
+              <div class="bar-label">Kam</div>
+            </div>
+            <div class="bar" style="height:90px;background:#1AA3E6;">
+              <div class="bar-label">Jum</div>
+            </div>
+            <div class="bar" style="height:45px;background:#f59e0b;">
+              <div class="bar-label">Sab</div>
+            </div>
+          </div>
+
+          <div class="stat-row" style="margin-bottom:8px;">
+            <div class="stat-card" style="flex-direction:column;align-items:center;text-align:center;">
+              <div class="num" style="color:#22c55e;font-size:22px;">132</div>
+              <div class="lbl">Hadir</div>
+            </div>
+            <div class="stat-card" style="flex-direction:column;align-items:center;text-align:center;">
+              <div class="num" style="color:#1AA3E6;font-size:22px;">10</div>
+              <div class="lbl">Izin</div>
+            </div>
+          </div>
+          <div class="stat-row" style="margin-bottom:16px;">
+            <div class="stat-card" style="flex-direction:column;align-items:center;text-align:center;">
+              <div class="num" style="color:#f59e0b;font-size:22px;">8</div>
+              <div class="lbl">Sakit</div>
+            </div>
+            <div class="stat-card" style="flex-direction:column;align-items:center;text-align:center;">
+              <div class="num" style="color:#ef4444;font-size:22px;">6</div>
+              <div class="lbl">Alpa</div>
+            </div>
+          </div>
+
+          <div class="section-title">Detail Absensi</div>
+          <div class="student-card">
+            <div class="avatar" style="width:50px;height:50px;border-radius:10px;background:#f5f7fb;">📸</div>
+            <div class="info">
+              <div class="name">Ahmad Fauzi</div>
+              <div class="detail">X-A • 07:30</div>
+            </div>
+            <div class="badge hadir">Hadir</div>
+          </div>
+          <div class="student-card">
+            <div class="avatar" style="width:50px;height:50px;border-radius:10px;background:#f5f7fb;">📸</div>
+            <div class="info">
+              <div class="name">Siti Nurhaliza</div>
+              <div class="detail">X-A • 07:32</div>
+            </div>
+            <div class="badge hadir">Hadir</div>
+          </div>
+
+          <button class="btn-outline" style="margin:12px 0;" onclick="navigateTo('history')">📋 Lihat Riwayat Lengkap</button>
+          <button class="btn-primary" onclick="showToast('PDF laporan berhasil diunduh')">📥 Unduh Laporan PDF</button>
+          <div style="height:16px;"></div>
+        </div>
+      </div>
+
+      <!-- ========== PROFILE ========== -->
+      <div class="screen" id="profile">
+        <div class="status-bar"></div>
+        <div class="scroll-content" style="height:calc(100% - 70px);">
+          <div class="profile-header">
+            <div class="p-avatar">BS</div>
+            <div class="p-name">Bpk. Budi Santoso</div>
+            <div class="p-email">budi@sekolah.sch.id</div>
+            <div style="color:rgba(255,255,255,0.4);font-size:11px;margin-top:8px;">Bergabung 15 Jan 2024</div>
+          </div>
+
+          <div class="section-title">Info Akun</div>
+          <div class="profile-info">
+            <div class="pi-icon">👤</div>
+            <div class="pi-text">
+              <div class="pi-label">Nama Lengkap</div>
+              <div class="pi-value">Bpk. Budi Santoso, S.Pd.</div>
+            </div>
+          </div>
+          <div class="profile-info">
+            <div class="pi-icon">📧</div>
+            <div class="pi-text">
+              <div class="pi-label">Email</div>
+              <div class="pi-value">budi@sekolah.sch.id</div>
+            </div>
+          </div>
+          <div class="profile-info">
+            <div class="pi-icon">📅</div>
+            <div class="pi-text">
+              <div class="pi-label">Tanggal Bergabung</div>
+              <div class="pi-value">15 Januari 2024</div>
+            </div>
+          </div>
+
+          <div class="section-title" style="margin-top:20px;">Tentang</div>
+          <div class="profile-info" style="cursor:pointer;" onclick="showToast('Absensi Siswa v1.0.0')">
+            <div class="pi-icon" style="background:rgba(26,163,230,0.08);color:#1AA3E6;">ℹ️</div>
+            <div class="pi-text">
+              <div class="pi-label">Tentang Aplikasi</div>
+              <div class="pi-value">Versi 1.0.0</div>
+            </div>
+            <span style="color:#6b7b8c;">›</span>
+          </div>
+
+          <button class="btn-logout" onclick="showLogoutModal()">🚪 Keluar</button>
+          <div style="height:16px;"></div>
+        </div>
+
+        <!-- Bottom Nav -->
+        <div class="bottom-nav">
+          <button class="nav-item" onclick="navigateTo('home')">
+            <span class="nav-icon">🏠</span>
+            <span class="nav-label">Beranda</span>
+          </button>
+          <button class="nav-item" onclick="navigateTo('scan')">
+            <span class="nav-icon">📷</span>
+            <span class="nav-label">Absensi</span>
+          </button>
+          <button class="nav-item" onclick="navigateTo('students')">
+            <span class="nav-icon">👥</span>
+            <span class="nav-label">Siswa</span>
+          </button>
+          <button class="nav-item" onclick="navigateTo('reports')">
+            <span class="nav-icon">📊</span>
+            <span class="nav-label">Laporan</span>
+          </button>
+          <button class="nav-item active" onclick="navigateTo('profile')">
+            <span class="nav-icon">👤</span>
+            <span class="nav-label">Profil</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ========== PARENT KELUHAN ========== -->
+      <div class="screen" id="parent-keluhan">
+        <div class="status-bar"></div>
+        <div class="title-bar">
+          <button class="tb-btn" onclick="navigateTo('parent-login')">←</button>
+          <div class="tb-title">Keluhan Orang Tua</div>
+          <button class="tb-btn" onclick="navigateTo('parent-login')">🚪</button>
+        </div>
+        <div class="scan-content" style="height:calc(100% - 84px);">
+          <div style="background:linear-gradient(135deg,#26A269,#1AA3E6);border-radius:20px;padding:20px;display:flex;align-items:center;gap:14px;margin-bottom:20px;">
+            <div style="width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:700;">S</div>
+            <div>
+              <div style="color:#fff;font-size:17px;font-weight:700;">Ibu Siti Rahmawati</div>
+              <div style="color:rgba(255,255,255,0.65);font-size:12px;">08123456789</div>
+              <div style="color:rgba(255,255,255,0.5);font-size:11px;">Anak: Siti Nurhaliza</div>
+            </div>
+          </div>
+
+          <div class="section-title">Kirim Keluhan</div>
+          <div style="font-size:12px;color:#6b7b8c;margin-bottom:12px;">Sampaikan keluhan atau masukan untuk putra/i Anda</div>
+
+          <div class="input-group">
+            <label>Judul Keluhan</label>
+            <input class="input-field" type="text" placeholder="Cth: Sakit, Izin, Masalah Belajar" value="Izin Tidak Masuk">
+          </div>
+          <div class="input-group">
+            <label>Deskripsi</label>
+            <textarea class="input-field" style="min-height:80px;resize:none;font-family:'Inter',sans-serif;" placeholder="Jelaskan keluhan secara detail...">Siti tidak bisa masuk hari ini karena demam. Mohon izin.</textarea>
+          </div>
+
+          <button class="btn-primary" onclick="sendKeluhan()" style="margin-top:8px;">📨 Kirim Keluhan</button>
+
+          <div class="section-title" style="margin-top:24px;">
+            📜 Riwayat Keluhan
+          </div>
+
+          <div style="background:#fff;border:1px solid #dde3eb;border-radius:14px;padding:14px;margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <span style="font-weight:600;font-size:13px;">Izin Sakit</span>
+              <span style="padding:3px 8px;border-radius:6px;background:rgba(34,197,94,0.1);color:#22c55e;font-size:10px;font-weight:700;border:1px solid rgba(34,197,94,0.2);">✅ Selesai</span>
+            </div>
+            <p style="font-size:12px;color:#1e2937;margin-bottom:4px;">Anak saya tidak bisa masuk karena demam tinggi.</p>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:#6b7b8c;">
+              <span>15/05/2024 08:15</span>
+              <span style="color:#1AA3E6;">💬 Ada respon guru</span>
+            </div>
+          </div>
+          <div style="background:#fff;border:1px solid #dde3eb;border-radius:14px;padding:14px;margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <span style="font-weight:600;font-size:13px;">Masalah Belajar</span>
+              <span style="padding:3px 8px;border-radius:6px;background:rgba(245,158,11,0.1);color:#f59e0b;font-size:10px;font-weight:700;border:1px solid rgba(245,158,11,0.2);">⏳ Pending</span>
+            </div>
+            <p style="font-size:12px;color:#1e2937;margin-bottom:4px;">Siti kesulitan memahami pelajaran Matematika.</p>
+            <div style="font-size:10px;color:#6b7b8c;">10/05/2024 14:30</div>
+          </div>
+          <div style="height:16px;"></div>
+        </div>
+      </div>
+
+      <!-- ========== HISTORY ========== -->
+      <div class="screen" id="history">
+        <div class="status-bar"></div>
+        <div class="title-bar">
+          <button class="tb-btn" onclick="navigateTo('home')">←</button>
+          <div class="tb-title">Riwayat Absensi</div>
+          <button class="tb-btn" onclick="showToast('Filter direset')">🔄</button>
+        </div>
+        <div style="padding:0 16px;">
+          <input class="input-field" type="text" placeholder="Cari nama siswa..." style="background:#f5f7fb;margin-bottom:8px;">
+          <div class="chip-row">
+            <div class="chip active">📅 Pilih Tanggal</div>
+            <div class="chip">🏷️ Status</div>
+            <div class="chip">📁 Kategori</div>
+          </div>
+        </div>
+        <div style="padding:0 16px;height:calc(100% - 180px);overflow-y:auto;">
+          <div style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #dde3eb;border-radius:16px;padding:12px;margin-bottom:8px;">
+            <div style="width:56px;height:56px;background:#f5f7fb;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;">📸</div>
+            <div style="flex:1;">
+              <div style="font-weight:600;font-size:13px;">Ahmad Fauzi</div>
+              <div style="font-size:11px;color:#6b7b8c;">X-A • 15/05/2024 • 07:30</div>
+              <div style="font-size:10px;color:#26A269;">Reguler</div>
+            </div>
+            <div class="badge hadir">Hadir</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #dde3eb;border-radius:16px;padding:12px;margin-bottom:8px;">
+            <div style="width:56px;height:56px;background:#f5f7fb;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;">📸</div>
+            <div style="flex:1;">
+              <div style="font-weight:600;font-size:13px;">Siti Nurhaliza</div>
+              <div style="font-size:11px;color:#6b7b8c;">X-A • 15/05/2024 • 07:32</div>
+              <div style="font-size:10px;color:#26A269;">Reguler</div>
+            </div>
+            <div class="badge hadir">Hadir</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #dde3eb;border-radius:16px;padding:12px;margin-bottom:8px;">
+            <div style="width:56px;height:56px;background:#f5f7fb;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;">📸</div>
+            <div style="flex:1;">
+              <div style="font-weight:600;font-size:13px;">Budi Prasetyo</div>
+              <div style="font-size:11px;color:#6b7b8c;">X-A • 15/05/2024 • 07:45</div>
+              <div style="font-size:10px;color:#26A269;">Reguler</div>
+            </div>
+            <div class="badge izin">Izin</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #dde3eb;border-radius:16px;padding:12px;margin-bottom:8px;">
+            <div style="width:56px;height:56px;background:#f5f7fb;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;">📸</div>
+            <div style="flex:1;">
+              <div style="font-weight:600;font-size:13px;">Dewi Sartika</div>
+              <div style="font-size:11px;color:#6b7b8c;">X-B • 15/05/2024 • 08:00</div>
+              <div style="font-size:10px;color:#26A269;">Reguler</div>
+            </div>
+            <div class="badge sakit">Sakit</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #dde3eb;border-radius:16px;padding:12px;margin-bottom:8px;">
+            <div style="width:56px;height:56px;background:#f5f7fb;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;">📸</div>
+            <div style="flex:1;">
+              <div style="font-weight:600;font-size:13px;">Rudi Hartono</div>
+              <div style="font-size:11px;color:#6b7b8c;">X-B • 15/05/2024 • -</div>
+              <div style="font-size:10px;color:#26A269;">Reguler</div>
+            </div>
+            <div class="badge alpa">Alpa</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== TOAST ========== -->
+      <div class="toast" id="toast">✅ Berhasil</div>
+
+      <!-- ========== MODAL ========== -->
+      <div class="modal-overlay" id="modal">
+        <div class="modal-box" id="modalContent">
+          <!-- Dynamic Content -->
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- INFO PANEL -->
+  <div class="info-panel" id="infoPanel">
+    <div class="screen-indicator" id="dotIndicator"></div>
+    <div class="screen-label" id="screenLabel">Splash Screen</div>
+    <h2>🎓 Aplikasi Absensi Siswa</h2>
+    <div class="subtitle">Sistem absensi digital dengan notifikasi WhatsApp untuk orang tua</div>
+
+    <div id="stepsContainer">
+      <div class="step">
+        <div class="num">1</div>
+        <div class="text">
+          <h4>Splash Screen</h4>
+          <p>Animasi logo dan loading aplikasi sebelum masuk ke halaman utama</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">2</div>
+        <div class="text">
+          <h4>Login Guru</h4>
+          <p>Guru login menggunakan email dan password untuk mengelola absensi</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">3</div>
+        <div class="text">
+          <h4>Dashboard & Absensi</h4>
+          <p>Lihat statistik kehadiran, ambil foto siswa, dan catat status kehadiran dengan kamera</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">4</div>
+        <div class="text">
+          <h4>Manajemen Siswa</h4>
+          <p>Tambah, edit, hapus data siswa. Kirim notifikasi WhatsApp ke orang tua</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">5</div>
+        <div class="text">
+          <h4>Laporan & Portal Orang Tua</h4>
+          <p>Cetak PDF laporan absensi. Orang tua login via PIN untuk kirim keluhan</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-hint">
+      💡 <strong>Navigasi:</strong> Klik tombol atau menu di dalam layar ponsel untuk menjelajahi demo interaktif aplikasi.
+    </div>
+  </div>
+</div>
+
+<script>
+  // Screen Definitions
+  const screenNames = {
+    'splash': 'Splash Screen — Loading aplikasi',
+    'login': 'Login Guru — Masuk dengan email & password',
+    'home': 'Dashboard — Beranda dengan statistik kehadiran',
+    'scan': 'Absensi — Ambil foto & catat kehadiran siswa',
+    'students': 'Data Siswa — Kelola data & kirim notifikasi',
+    'reports': 'Laporan — Grafik kehadiran & cetak PDF',
+    'profile': 'Profil Guru — Info akun & pengaturan',
+    'parent-login': 'Login Orang Tua — Masuk dengan nomor HP & PIN',
+    'parent-keluhan': 'Keluhan Orang Tua — Kirim keluhan & lihat riwayat',
+    'history': 'Riwayat Absensi — Filter & cari data absensi'
+  };
+
+  const screenOrder = [
+    'splash', 'login', 'home', 'scan', 'students',
+    'reports', 'profile', 'parent-login', 'parent-keluhan', 'history'
+  ];
+
+  const screenSteps = {
+    'splash': [true, false, false, false, false],
+    'login': [true, true, false, false, false],
+    'home': [true, true, true, false, false],
+    'scan': [true, true, true, false, false],
+    'students': [true, true, true, true, false],
+    'reports': [true, true, true, true, false],
+    'profile': [true, true, true, false, false],
+    'parent-login': [true, true, false, false, false],
+    'parent-keluhan': [true, true, false, false, true],
+    'history': [true, true, true, false, false]
+  };
+
+  let currentScreen = 'splash';
+
+  function navigateTo(screenId) {
+    const oldScreen = document.getElementById(currentScreen);
+    const newScreen = document.getElementById(screenId);
+
+    if (!oldScreen || !newScreen || currentScreen === screenId) return;
+
+    // Check if old screen has bottom nav
+    const hasBottomNav = currentScreen === 'home' || currentScreen === 'profile';
+    const newHasBottomNav = screenId === 'home' || screenId === 'profile';
+
+    oldScreen.classList.remove('active');
+    newScreen.classList.add('active');
+
+    // Handle bottom nav active states
+    if (newHasBottomNav) {
+      document.querySelectorAll(`#${screenId} .nav-item`).forEach(item => {
+        item.classList.remove('active');
+        const label = item.querySelector('.nav-label')?.textContent;
+        if (label === 'Beranda' && screenId === 'home') item.classList.add('active');
+        if (label === 'Profil' && screenId === 'profile') item.classList.add('active');
+      });
+    }
+
+    if (hasBottomNav && screenId !== currentScreen) {
+      document.querySelectorAll(`#${currentScreen} .nav-item`).forEach(item => {
+        item.classList.remove('active');
+      });
+    }
+
+    // Update bottom nav for home/profile when navigating back
+    if (screenId === 'home') {
+      document.querySelectorAll(`#home .nav-item`).forEach(item => {
+        item.classList.remove('active');
+        if (item.querySelector('.nav-label')?.textContent === 'Beranda') item.classList.add('active');
+      });
+    }
+
+    currentScreen = screenId;
+    updateInfoPanel(screenId);
+  }
+
+  function updateInfoPanel(screenId) {
+    const label = document.getElementById('screenLabel');
+    const indicator = document.getElementById('dotIndicator');
+    const steps = document.getElementById('stepsContainer');
+
+    label.textContent = screenNames[screenId] || screenId;
+
+    // Update dots
+    const stepActive = screenSteps[screenId] || [true, false, false, false, false];
+    indicator.innerHTML = '';
+    stepActive.forEach((active, i) => {
+      const dot = document.createElement('div');
+      dot.className = 'dot' + (active ? ' active' : '');
+      indicator.appendChild(dot);
+    });
+
+    // Highlight current step
+    const stepEls = steps.querySelectorAll('.step');
+    stepEls.forEach((el, i) => {
+      el.style.opacity = stepActive[i] ? '1' : '0.35';
+    });
+  }
+
+  // === UTILITY FUNCTIONS ===
+  function showToast(msg, emoji = '✅') {
+    const toast = document.getElementById('toast');
+    toast.innerHTML = `${emoji} ${msg}`;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2500);
+  }
+
+  function showModal(type) {
+    const overlay = document.getElementById('modal');
+    const content = document.getElementById('modalContent');
+
+    if (type === 'tambahSiswa') {
+      content.innerHTML = `
+        <div style="text-align:center;">
+          <div class="modal-icon" style="background:linear-gradient(135deg,#26A269,#1AA3E6);color:#fff;">➕</div>
+          <h3>Tambah Siswa Baru</h3>
+          <p style="margin-bottom:16px;">Lengkapi data siswa untuk mendaftarkan ke sistem</p>
+        </div>
+        <div class="input-group">
+          <label>Nama Lengkap</label>
+          <input class="input-field" placeholder="Nama siswa">
+        </div>
+        <div class="input-group">
+          <label>NIS</label>
+          <input class="input-field" placeholder="Nomor Induk Siswa">
+        </div>
+        <div class="input-group">
+          <label>Kelas</label>
+          <input class="input-field" placeholder="Contoh: X-A">
+        </div>
+        <div style="display:flex;gap:12px;margin-top:16px;">
+          <button class="btn-secondary" onclick="closeModal()">Batal</button>
+          <button class="btn-primary" onclick="closeModal();showToast('Siswa berhasil ditambahkan');" style="flex:1;">Simpan</button>
+        </div>
+      `;
+    } else if (type === 'logout') {
+      content.innerHTML = `
+        <div style="text-align:center;">
+          <div class="modal-icon" style="background:rgba(239,68,68,0.1);color:#ef4444;">🚪</div>
+          <h3>Konfirmasi Keluar</h3>
+          <p>Apakah Anda yakin ingin keluar dari aplikasi?</p>
+        </div>
+        <div class="modal-actions" style="margin-top:8px;">
+          <button class="btn-secondary" onclick="closeModal()">Batal</button>
+          <button class="btn-danger" onclick="closeModal();navigateTo('login');showToast('Berhasil keluar');">Keluar</button>
+        </div>
+      `;
+    }
+
+    overlay.classList.add('show');
+  }
+
+  function closeModal() {
+    document.getElementById('modal').classList.remove('show');
+  }
+
+  function showLogoutModal() {
+    showModal('logout');
+  }
+
+  function selectChip(el, label) {
+    el.closest('.chip-row').querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  function selectStatus(el, status) {
+    el.closest('.status-grid').querySelectorAll('.status-btn').forEach(b => {
+      b.classList.remove('active');
+      ['hadir','izin','sakit','alpa'].forEach(s => b.classList.remove(s));
+    });
+    el.classList.add('active', status);
+  }
+
+  function selectStudent(el, nis) {
+    el.closest('div').querySelectorAll('.student-item').forEach(s => {
+      s.style.background = 'transparent';
+      s.style.borderRadius = '0';
+      s.style.padding = '12px 0';
+      const check = s.querySelector('span:last-child');
+      if (check && check.textContent === '✓') check.remove();
+    });
+    el.style.background = 'rgba(38,162,105,0.06)';
+    el.style.borderRadius = '10px';
+    el.style.padding = '12px';
+    const existing = el.querySelector('span:last-child');
+    if (!existing || existing.textContent !== '✓') {
+      const check = document.createElement('span');
+      check.style.cssText = 'color:#22c55e;font-size:16px;';
+      check.textContent = '✓';
+      el.appendChild(check);
+    }
+  }
+
+  function takePhoto(el) {
+    el.classList.toggle('has-photo');
+    const icon = document.getElementById('camIcon');
+    const label = document.getElementById('camLabel');
+    const hint = document.getElementById('camHint');
+
+    if (el.classList.contains('has-photo')) {
+      icon.textContent = '📸';
+      label.textContent = 'Foto Berhasil Diambil';
+      hint.textContent = 'Ketuk untuk mengambil ulang';
+      showToast('Foto siswa berhasil diambil', '📸');
+    } else {
+      icon.textContent = '📸';
+      label.textContent = 'Ambil Foto Siswa';
+      hint.textContent = 'Ketuk untuk membuka kamera';
+    }
+  }
+
+  function submitAbsensi() {
+    showToast('Absensi berhasil disimpan!');
+    setTimeout(() => {
+      showModal('success');
+      const content = document.getElementById('modalContent');
+      content.innerHTML = `
+        <div style="text-align:center;">
+          <div class="modal-icon" style="background:rgba(34,197,94,0.1);color:#22c55e;">✅</div>
+          <h3>Absensi Tersimpan</h3>
+          <p>Absensi Siti Nurhaliza tercatat sebagai <strong>Hadir</strong>. Notifikasi WhatsApp terkirim ke Ibu Siti Rahmawati.</p>
+        </div>
+        <button class="btn-primary" onclick="closeModal()" style="margin-top:8px;">OK</button>
+      `;
+    }, 300);
+  }
+
+  function sendKeluhan() {
+    showToast('Keluhan berhasil dikirim ke sekolah!', '📨');
+  }
+
+  function filterStudents(q) {
+    const list = document.getElementById('studentList');
+    const items = list.querySelectorAll('.student-item');
+    items.forEach(item => {
+      const name = item.querySelector('.s-name')?.textContent?.toLowerCase() || '';
+      item.style.display = name.includes(q.toLowerCase()) ? 'flex' : 'none';
+    });
+  }
+
+  function filterByClass(cls) {
+    const list = document.getElementById('studentList');
+    const items = list.querySelectorAll('.student-item');
+    items.forEach(item => {
+      const meta = item.querySelector('.s-meta')?.textContent || '';
+      if (!cls || meta.includes(cls)) {
+        item.style.display = 'flex';
+      } else {
+        item.style.display = 'none';
+      }
+    });
+  }
+
+  // Auto-splash transition
+  setTimeout(() => {
+    navigateTo('login');
+  }, 2500);
+
+  // Info panel synced to current screen
+  updateInfoPanel('splash');
+</script>
+</body>
+</html>

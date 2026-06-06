@@ -1,0 +1,98 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── FUNGSI BANTU ─────────────────────────────────────
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function hasFields(requiredFields) {
+      return request.resource.data.keys().hasAll(requiredFields);
+    }
+
+    function isString(field) {
+      return request.resource.data[field] is string;
+    }
+
+    function isTimestamp(field) {
+      return request.resource.data[field] is timestamp;
+    }
+
+    // ─── GURU ─────────────────────────────────────────────
+    // Dokumen guru menggunakan UID user sebagai document ID.
+    // Hanya pemilik yang bisa membaca/menulis datanya sendiri.
+    match /guru/{userId} {
+      allow read: if isOwner(userId);
+      allow delete: if isOwner(userId);
+
+      allow create: if isOwner(userId)
+        && hasFields(['nama', 'email', 'createdAt'])
+        && isString('nama')
+        && isString('email')
+        && isTimestamp('createdAt');
+
+      allow update: if isOwner(userId)
+        && isString('nama')
+        && isString('email');
+    }
+
+    // ─── SISWA ────────────────────────────────────────────
+    // Semua guru yang terautentikasi bisa membaca & menulis data siswa.
+    match /siswa/{docId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAuthenticated()
+        && hasFields(['nama', 'nis', 'kelas', 'kategori', 'namaOrtu', 'hpOrtu', 'createdAt'])
+        && isString('nama')
+        && isString('nis')
+        && isString('kelas')
+        && isString('kategori')
+        && isString('namaOrtu')
+        && isString('hpOrtu')
+        && isTimestamp('createdAt');
+
+      allow update: if isAuthenticated()
+        && isString('nama')
+        && isString('nis')
+        && isString('kelas');
+
+      allow delete: if isAuthenticated();
+    }
+
+    // ─── ABSENSI ──────────────────────────────────────────
+    // Semua guru yang terautentikasi bisa membaca & menulis data absensi.
+    match /absensi/{docId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAuthenticated()
+        && hasFields(['siswaId', 'siswaNama', 'kelas', 'kategori', 'tanggal', 'status', 'jam', 'guruId'])
+        && isString('siswaId')
+        && isString('siswaNama')
+        && isString('kelas')
+        && isString('kategori')
+        && isTimestamp('tanggal')
+        && isString('status')
+        && isString('jam')
+        && isString('guruId')
+        && request.resource.data['status'] in ['hadir', 'izin', 'sakit', 'alpa'];
+
+      allow update: if isAuthenticated()
+        && isString('status')
+        && request.resource.data['status'] in ['hadir', 'izin', 'sakit', 'alpa'];
+
+      allow delete: if isAuthenticated();
+    }
+
+    // ─── DENY ─────────────────────────────────────────────
+    // Tolak semua akses ke koleksi lain yang tidak didefinisikan
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
