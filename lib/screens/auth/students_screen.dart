@@ -8,7 +8,6 @@ import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
 import '../../services/whatsapp_service.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/bg_widget.dart';
 import 'student_detail_screen.dart';
 
 class StudentsScreen extends StatefulWidget {
@@ -802,8 +801,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
           ),
         ],
       ),
-      body: BgWidget(
-        child: Column(
+      body: Column(
         children: [
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -1005,7 +1003,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
             ),
           ),
         ],
-      ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showTambahSiswaDialog,

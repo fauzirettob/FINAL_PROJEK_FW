@@ -98,13 +98,6 @@ class _SplashScreenState extends State<SplashScreen>
     return Scaffold(
       body: Stack(
         children: [
-          // Background image
-          Positioned.fill(
-            child: Image.asset(
-              'assets/images/bg.png',
-              fit: BoxFit.cover,
-            ),
-          ),
           // Gradient overlay
           Container(
             width: double.infinity,

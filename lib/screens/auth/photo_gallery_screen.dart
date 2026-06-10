@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/bg_widget.dart';
 import '../../models/absensi.dart';
 
 // --- Top-level constant maps for status colors & labels ---
@@ -50,9 +49,7 @@ class _PhotoGalleryScreenState extends State<PhotoGalleryScreen> {
       appBar: AppBar(
         title: Text('Galeri Foto (${_photos.length})'),
       ),
-      body: BgWidget(
-        child: _photos.isEmpty ? _buildEmptyState() : _buildGrid(),
-      ),
+      body: _photos.isEmpty ? _buildEmptyState() : _buildGrid(      ),
     );
   }
 

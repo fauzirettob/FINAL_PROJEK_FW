@@ -3,7 +3,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../services/firestore_service.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/bg_widget.dart';
 import 'parent_keluhan_screen.dart';
 
 class ParentLoginScreen extends StatefulWidget {
@@ -114,8 +113,7 @@ class _ParentLoginScreenState extends State<ParentLoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: BgWidget(
-        child: SafeArea(
+      body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
@@ -299,7 +297,6 @@ class _ParentLoginScreenState extends State<ParentLoginScreen> {
             ),
           ),
         ),
-      ),
       ),
     );
   }

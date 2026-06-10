@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/bg_widget.dart';
 import '../../services/firestore_service.dart';
 import '../../models/absensi.dart';
 
@@ -141,8 +140,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
         ],
       ),
-      body: BgWidget(
-        child: Column(
+      body: Column(
         children: [
           // Filters
           Container(
@@ -289,7 +287,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           ),
         ],
-      ),
       ),
     );
   }

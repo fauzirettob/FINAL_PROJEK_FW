@@ -6,7 +6,6 @@ import '../../models/keluhan.dart';
 import '../../providers/keluhan_provider.dart';
 import '../../services/firestore_service.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/bg_widget.dart';
 
 class DaftarKeluhanScreen extends StatefulWidget {
   const DaftarKeluhanScreen({super.key});
@@ -413,8 +412,7 @@ class _DaftarKeluhanScreenState extends State<DaftarKeluhanScreen> {
           ],
         ),
       ),
-      body: BgWidget(
-        child: Column(
+      body: Column(
         children: [
           // Filter status
           Padding(
@@ -512,7 +510,6 @@ class _DaftarKeluhanScreenState extends State<DaftarKeluhanScreen> {
             ),
           ),
         ],
-      ),
       ),
     );
   }

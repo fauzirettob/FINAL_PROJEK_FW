@@ -5,7 +5,6 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/bg_widget.dart';
 import '../../services/firestore_service.dart';
 import '../../services/storage_service.dart';
 import '../../models/absensi.dart';
@@ -145,8 +144,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Laporan")),
-      body: BgWidget(
-        child: SingleChildScrollView(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
@@ -497,7 +495,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
           ],
         ),
-      ),
       ),
     );
   }

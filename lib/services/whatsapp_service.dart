@@ -46,7 +46,7 @@ Tanggal: $tanggal
 Jam: $jam
 
 Terima kasih.
-Guru SMA Negeri 11 Ambon
+Guru SMA AS-SAMA AMBON 
 ''';
 
     try {
@@ -99,7 +99,7 @@ Putra/i Anda *$namaSiswa* mendapatkan teguran dari sekolah:
 Mohon perhatian dan bimbingan untuk putra/Putri Anda.
 
 Terima kasih.
-- Guru SMA Negeri 11 Ambon
+- Guru SMA AS-SAMA AMBON 
 ''';
 
     try {
@@ -158,7 +158,7 @@ Berikut rekap kehadiran putra/i Anda hari ini:
 📅 Tanggal: $tanggal
 
 Terima kasih.
-- Guru SMA Negeri 11 Ambon
+- Guru SMA AS-SAMA AMBON 
 ''';
 
     try {

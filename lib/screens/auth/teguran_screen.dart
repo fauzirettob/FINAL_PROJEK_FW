@@ -8,7 +8,6 @@ import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
 import '../../services/whatsapp_service.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/bg_widget.dart';
 
 class TeguranScreen extends StatefulWidget {
   const TeguranScreen({super.key});
@@ -350,8 +349,7 @@ class _TeguranScreenState extends State<TeguranScreen> {
           ),
         ],
       ),
-      body: BgWidget(
-        child: guruId == null
+      body: guruId == null
           ? const Center(child: Text('Silakan login terlebih dahulu'))
           : StreamBuilder<List<Teguran>>(
               stream: _fs.getTeguranByGuruId(guruId),
@@ -483,7 +481,6 @@ class _TeguranScreenState extends State<TeguranScreen> {
                 );
               },
             ),
-      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showBuatTeguranDialog,
         label: const Text('Buat Teguran'),

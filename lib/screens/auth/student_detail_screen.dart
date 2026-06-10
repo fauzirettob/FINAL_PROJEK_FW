@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/bg_widget.dart';
 import '../../services/firestore_service.dart';
 import '../../models/siswa.dart';
 import '../../models/absensi.dart';
@@ -356,8 +355,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
             ),
         ],
       ),
-      body: BgWidget(
-        child: StreamBuilder<List<Absensi>>(
+      body: StreamBuilder<List<Absensi>>(
           stream: _fs.getAbsensiBySiswaId(_siswa.id),
           builder: (context, snapshot) {
             if (snapshot.hasError) {
@@ -390,7 +388,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
             return _buildContent(absensiList);
           },
         ),
-      ),
     );
   }
 

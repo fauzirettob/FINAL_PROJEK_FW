@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/bg_widget.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -15,8 +14,7 @@ class ProfileScreen extends StatelessWidget {
     final auth = context.watch<AuthProvider>();
     final guru = auth.guru;
 
-    return BgWidget(
-      child: SafeArea(
+    return SafeArea(
         child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -173,7 +171,6 @@ class ProfileScreen extends StatelessWidget {
             const SizedBox(height: 20),
           ],
         ),
-      ),
       ),
     );
   }

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/bg_widget.dart';
 import '../../services/firestore_service.dart';
 import '../../services/storage_service.dart';
 import '../../services/whatsapp_service.dart';
@@ -327,8 +326,7 @@ class _ScanScreenState extends State<ScanScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Absensi Foto")),
-      body: BgWidget(
-        child: SingleChildScrollView(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
@@ -701,7 +699,6 @@ class _ScanScreenState extends State<ScanScreen> {
             ),
           ],
         ),
-      ),
       ),
     );
   }

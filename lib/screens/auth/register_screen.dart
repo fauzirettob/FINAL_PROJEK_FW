@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/bg_widget.dart';
 import '../../widgets/skeleton_loader.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -112,8 +111,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: BgWidget(
-        child: SafeArea(
+      body: SafeArea(
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 350),
           switchInCurve: Curves.easeOut,
@@ -131,7 +129,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 )
               : _buildForm(),
         ),
-      ),
       ),
     );
   }

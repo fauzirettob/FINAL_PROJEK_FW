@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/bg_widget.dart';
 import '../../services/firestore_service.dart';
 import '../../models/absensi.dart';
 import '../../models/siswa.dart';
@@ -38,8 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final namaGuru = guru?.nama ?? 'Guru';
     final sapaan = _getGreeting();
 
-    return BgWidget(
-      child: SafeArea(
+    return SafeArea(
         child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -494,7 +492,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-      ),
       ),
     );
   }

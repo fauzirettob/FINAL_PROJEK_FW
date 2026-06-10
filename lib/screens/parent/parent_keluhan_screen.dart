@@ -5,7 +5,6 @@ import '../../models/keluhan.dart';
 import '../../models/siswa.dart';
 import '../../services/firestore_service.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/bg_widget.dart';
 import 'parent_login_screen.dart';
 
 class ParentKeluhanScreen extends StatefulWidget {
@@ -112,8 +111,7 @@ class _ParentKeluhanScreenState extends State<ParentKeluhanScreen> {
           ),
         ],
       ),
-      body: BgWidget(
-        child: SingleChildScrollView(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -343,7 +341,6 @@ class _ParentKeluhanScreenState extends State<ParentKeluhanScreen> {
             ),
           ],
         ),
-      ),
       ),
     );
   }

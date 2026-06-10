@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/bg_widget.dart';
 import 'register_screen.dart';
 import 'main_shell.dart';
 
@@ -22,8 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: BgWidget(
-        child: Padding(
+      body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -118,7 +116,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             // END KODE TAMBAHAN
           ],
-          ),
         ),
       ),
     );
