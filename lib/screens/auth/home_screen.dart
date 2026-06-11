@@ -624,23 +624,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       siswa.kelas,
                       style: const TextStyle(color: AppColors.muted, fontSize: 12),
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      width: 4,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: AppColors.muted.withValues(alpha: 0.4),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      siswa.kategori,
-                      style: TextStyle(
-                        color: AppColors.primary.withValues(alpha: 0.7),
-                        fontSize: 11,
-                      ),
-                    ),
+
                   ],
                 ),
               ],

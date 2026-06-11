@@ -5,7 +5,6 @@ class Absensi {
   final String siswaId;
   final String siswaNama;
   final String kelas;
-  final String kategori;
   final DateTime tanggal;
   final String status; // hadir, izin, sakit, alpa
   final String jam;
@@ -18,7 +17,6 @@ class Absensi {
     required this.siswaId,
     required this.siswaNama,
     required this.kelas,
-    required this.kategori,
     required this.tanggal,
     required this.status,
     required this.jam,
@@ -33,7 +31,6 @@ class Absensi {
       siswaId: data['siswaId'] ?? '',
       siswaNama: data['siswaNama'] ?? '',
       kelas: data['kelas'] ?? '',
-      kategori: data['kategori'] ?? '',
       tanggal: data['tanggal'] is Timestamp
           ? (data['tanggal'] as Timestamp).toDate()
           : DateTime.now(),
@@ -50,7 +47,6 @@ class Absensi {
       'siswaId': siswaId,
       'siswaNama': siswaNama,
       'kelas': kelas,
-      'kategori': kategori,
       'tanggal': Timestamp.fromDate(tanggal),
       'status': status,
       'jam': jam,

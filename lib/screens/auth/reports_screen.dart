@@ -20,27 +20,27 @@ class ReportsScreen extends StatefulWidget {
 class _ReportsScreenState extends State<ReportsScreen> {
   final FirestoreService _fs = FirestoreService();
   final StorageService _storage = StorageService();
-  String? _selectedKategori;
-  List<String> _kategoriList = [];
+  String? _selectedKelas;
+  List<String> _kelasList = [];
   DateTime? _startDate;
   DateTime? _endDate;
 
   @override
   void initState() {
     super.initState();
-    _loadKategori();
+    _loadKelas();
     // Default to today
     final now = DateTime.now();
     _startDate = DateTime(now.year, now.month, now.day);
     _endDate = _startDate;
   }
 
-  Future<void> _loadKategori() async {
+  Future<void> _loadKelas() async {
     final snapshot = await _fs.getAllSiswa();
     if (!mounted) return;
-    final kategoris = snapshot.map((s) => s.kategori).toSet().toList()..sort();
+    final kelasList = snapshot.map((s) => s.kelas).toSet().toList()..sort();
     setState(() {
-      _kategoriList = kategoris;
+      _kelasList = kelasList;
     });
   }
 
@@ -83,9 +83,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
           !a.tanggal.isBefore(startOfDay) && !a.tanggal.isAfter(endOfDay)).toList();
     }
 
-    // Filter by kategori
-    if (_selectedKategori != null && _selectedKategori!.isNotEmpty) {
-      result = result.where((a) => a.kategori == _selectedKategori).toList();
+    // Filter by kelas
+    if (_selectedKelas != null && _selectedKelas!.isNotEmpty) {
+      result = result.where((a) => a.kelas == _selectedKelas).toList();
     }
 
     return result;
@@ -148,11 +148,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // --- Filter Kategori ---
+            // --- Filter Kelas ---
             const Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Filter Kategori',
+                'Filter Kelas',
                 style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
@@ -171,27 +171,27 @@ class _ReportsScreenState extends State<ReportsScreen> {
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String?>(
                   isExpanded: true,
-                  value: _selectedKategori,
-                  hint: const Text('Semua Kategori',
+                  value: _selectedKelas,
+                  hint: const Text('Semua Kelas',
                       style: TextStyle(color: AppColors.muted)),
                   items: [
                     const DropdownMenuItem(
                       value: null,
-                      child: Text('Semua Kategori',
+                      child: Text('Semua Kelas',
                           style: TextStyle(color: AppColors.foreground)),
                     ),
-                    ..._kategoriList.map((k) => DropdownMenuItem(
+                    ..._kelasList.map((k) => DropdownMenuItem(
                           value: k,
                           child: Row(
                             children: [
-                              const Icon(Icons.category, size: 18, color: AppColors.primary),
+                              const Icon(Icons.class_, size: 18, color: AppColors.primary),
                               const SizedBox(width: 8),
                               Text(k),
                             ],
                           ),
                         )),
                   ],
-                  onChanged: (v) => setState(() => _selectedKategori = v),
+                  onChanged: (v) => setState(() => _selectedKelas = v),
                 ),
               ),
             ),
@@ -279,7 +279,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          if (_selectedKategori != null)
+                          if (_selectedKelas != null)
                             Container(
                               margin: const EdgeInsets.only(top: 6),
                               padding: const EdgeInsets.symmetric(
@@ -289,7 +289,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
-                                _selectedKategori!,
+                                _selectedKelas!,
                                 style: const TextStyle(
                                     color: Colors.white, fontSize: 13),
                               ),
@@ -588,16 +588,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     fontSize: 12,
                   ),
                 ),
-                if (a.kategori.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    a.kategori,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.primary.withValues(alpha: 0.7),
-                    ),
-                  ),
-                ],
+
               ],
             ),
           ),
@@ -854,10 +845,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 ),
                 pw.SizedBox(height: 4),
               ],
-              if (_selectedKategori != null) ...[
+              if (_selectedKelas != null) ...[
                 pw.SizedBox(height: 4),
                 pw.Text(
-                  "Kategori: $_selectedKategori",
+                  "Kelas: $_selectedKelas",
                   style: const pw.TextStyle(fontSize: 12),
                 ),
               ],

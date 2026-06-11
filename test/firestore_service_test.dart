@@ -17,7 +17,6 @@ void main() {
       siswaId: 'siswa-$id',
       siswaNama: nama,
       kelas: kelas,
-      kategori: 'Reguler',
       tanggal: DateTime.now(),
       status: status,
       jam: jam,
@@ -156,7 +155,6 @@ void main() {
         'siswaId': 'siswa-1',
         'siswaNama': 'Budi Santoso',
         'kelas': 'X-A',
-        'kategori': 'Reguler',
         'tanggal': Timestamp.fromDate(now),
         'status': 'hadir',
         'jam': '08:00',
@@ -170,7 +168,6 @@ void main() {
       expect(absensi.siswaId, equals('siswa-1'));
       expect(absensi.siswaNama, equals('Budi Santoso'));
       expect(absensi.kelas, equals('X-A'));
-      expect(absensi.kategori, equals('Reguler'));
       expect(absensi.status, equals('hadir'));
       expect(absensi.jam, equals('08:00'));
       expect(absensi.dikirim, isTrue);
@@ -187,7 +184,6 @@ void main() {
       expect(absensi.siswaId, equals(''));
       expect(absensi.siswaNama, equals(''));
       expect(absensi.kelas, equals(''));
-      expect(absensi.kategori, equals(''));
       expect(absensi.status, equals('hadir')); // default di model
       expect(absensi.jam, equals(''));
       expect(absensi.dikirim, isFalse);
@@ -214,7 +210,7 @@ void main() {
       final data = {
         'dikirim': 'true', // string, bukan boolean
         'siswaId': '1', 'siswaNama': 'a', 'kelas': 'a',
-        'kategori': 'a', 'status': 'hadir', 'jam': '08:00', 'guruId': '1',
+        'status': 'hadir', 'jam': '08:00', 'guruId': '1',
       };
 
       final absensi = Absensi.fromMap(data, 'abs-4');
@@ -236,7 +232,6 @@ void main() {
       expect(map['siswaId'], equals('siswa-1'));
       expect(map['siswaNama'], equals('Test Siswa'));
       expect(map['kelas'], equals('X-A'));
-      expect(map['kategori'], equals('Reguler'));
       expect(map['status'], equals('hadir'));
       expect(map['jam'], equals('08:00'));
       expect(map['guruId'], equals('guru-1'));
@@ -251,7 +246,6 @@ void main() {
         siswaId: 's1',
         siswaNama: 'Test',
         kelas: 'X-A',
-        kategori: 'Reguler',
         tanggal: DateTime.now(),
         status: 'hadir',
         jam: '08:00',

@@ -26,25 +26,25 @@ class _ScanScreenState extends State<ScanScreen> {
   String _selectedStatus = 'hadir';
   final FirestoreService _fs = FirestoreService();
 
-  // Filter kategori
-  String? _selectedKategori;
-  List<String> _kategoriList = [];
+  // Filter kelas
+  String? _selectedKelas;
+  List<String> _kelasList = [];
   List<Siswa> _allSiswa = [];
 
   @override
   void initState() {
     super.initState();
-    _loadSiswaAndKategori();
+    _loadSiswaAndKelas();
   }
 
-  Future<void> _loadSiswaAndKategori() async {
+  Future<void> _loadSiswaAndKelas() async {
     try {
       final siswaList = await _fs.getAllSiswa();
-      final kategoris = siswaList.map((s) => s.kategori).toSet().toList()..sort();
+      final kelasList = siswaList.map((s) => s.kelas).toSet().toList()..sort();
       if (mounted) {
         setState(() {
           _allSiswa = siswaList;
-          _kategoriList = kategoris;
+          _kelasList = kelasList;
         });
       }
     } catch (e) {
@@ -53,8 +53,8 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   List<Siswa> get _filteredSiswa {
-    if (_selectedKategori == null) return [];
-    return _allSiswa.where((s) => s.kategori == _selectedKategori).toList();
+    if (_selectedKelas == null) return [];
+    return _allSiswa.where((s) => s.kelas == _selectedKelas).toList();
   }
 
   @override
@@ -171,7 +171,6 @@ class _ScanScreenState extends State<ScanScreen> {
         siswaId: siswa.id,
         siswaNama: siswa.nama,
         kelas: siswa.kelas,
-        kategori: siswa.kategori,
         tanggal: now,
         status: _selectedStatus,
         jam: DateFormat.Hm().format(now),
@@ -410,8 +409,8 @@ class _ScanScreenState extends State<ScanScreen> {
 
             const SizedBox(height: 20),
 
-            // ── Filter Kategori ──
-            if (_kategoriList.isNotEmpty) ...[
+            // ── Filter Kelas ──
+            if (_kelasList.isNotEmpty) ...[
               Row(
                 children: [
                   Expanded(
@@ -425,37 +424,37 @@ class _ScanScreenState extends State<ScanScreen> {
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String?>(
                           isExpanded: true,
-                          value: _selectedKategori,
+                          value: _selectedKelas,
                           hint: const Row(
                             children: [
-                              Icon(Icons.category, size: 18, color: AppColors.muted),
+                              Icon(Icons.class_, size: 18, color: AppColors.muted),
                               SizedBox(width: 8),
-                              Text('Pilih Kategori',
+                              Text('Pilih Kelas',
                                   style: TextStyle(color: AppColors.muted)),
                             ],
                           ),
                           items: [
-                            ..._kategoriList.map((k) => DropdownMenuItem(
+                            ..._kelasList.map((k) => DropdownMenuItem(
                                   value: k,
                                   child: Row(
                                     children: [
-                                      Icon(Icons.category, size: 18, color: AppColors.primary),
+                                      Icon(Icons.class_, size: 18, color: AppColors.primary),
                                       SizedBox(width: 8),
                                       Text(k),
                                     ],
                                   ),
                                 )),
                           ],
-                          onChanged: (v) => setState(() => _selectedKategori = v),
+                          onChanged: (v) => setState(() => _selectedKelas = v),
                         ),
                       ),
                     ),
                   ),
-                  if (_selectedKategori != null) ...[
+                  if (_selectedKelas != null) ...[
                     const SizedBox(width: 8),
                     GestureDetector(
                       onTap: () => setState(() {
-                        _selectedKategori = null;
+                        _selectedKelas = null;
                       }),
                       child: Container(
                         width: 48,
@@ -474,8 +473,8 @@ class _ScanScreenState extends State<ScanScreen> {
               const SizedBox(height: 16),
             ],
 
-            // ── Daftar Siswa per Kategori ──
-            if (_selectedKategori != null) ...[
+            // ── Daftar Siswa per Kelas ──
+            if (_selectedKelas != null) ...[
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -494,7 +493,7 @@ class _ScanScreenState extends State<ScanScreen> {
                           const Icon(Icons.people, size: 16, color: AppColors.primary),
                           const SizedBox(width: 6),
                           Text(
-                            'Siswa $_selectedKategori (${_filteredSiswa.length})',
+                            'Siswa Kelas $_selectedKelas (${_filteredSiswa.length})',
                             style: const TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 13,
@@ -509,7 +508,7 @@ class _ScanScreenState extends State<ScanScreen> {
                         padding: EdgeInsets.all(16),
                         child: Center(
                           child: Text(
-                            'Tidak ada siswa di kategori ini',
+                            'Tidak ada siswa di kelas ini',
                             style: TextStyle(color: AppColors.muted, fontSize: 13),
                           ),
                         ),

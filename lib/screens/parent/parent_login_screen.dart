@@ -14,25 +14,21 @@ class ParentLoginScreen extends StatefulWidget {
 
 class _ParentLoginScreenState extends State<ParentLoginScreen> {
   final _hpController = TextEditingController();
-  final _passwordController = TextEditingController();
   final _fs = FirestoreService();
   bool _isLoading = false;
-  bool _obscurePassword = true;
 
   @override
   void dispose() {
     _hpController.dispose();
-    _passwordController.dispose();
     super.dispose();
   }
 
   Future<void> _login() async {
     final hp = _hpController.text.trim();
-    final password = _passwordController.text.trim();
 
-    if (hp.isEmpty || password.isEmpty) {
+    if (hp.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nomor HP dan password harus diisi')),
+        const SnackBar(content: Text('Nomor HP harus diisi')),
       );
       return;
     }
@@ -47,33 +43,6 @@ class _ParentLoginScreenState extends State<ParentLoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Nomor HP tidak terdaftar sebagai orang tua siswa'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      // Verifikasi PIN dari database (dibuat oleh guru saat registrasi)
-      final pinDatabase = siswaList.first.pinOrtu;
-
-      if (pinDatabase.isEmpty) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('PIN belum diatur. Hubungi guru untuk mendapatkan PIN.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      if (password != pinDatabase) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('PIN salah. Silakan coba lagi atau hubungi guru.'),
             backgroundColor: Colors.red,
           ),
         );
@@ -181,65 +150,6 @@ class _ParentLoginScreenState extends State<ParentLoginScreen> {
                       contentPadding: EdgeInsets.symmetric(
                           horizontal: 16, vertical: 16),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Input password
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: TextField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      labelText: 'PIN',
-                      hintText: 'Masukkan PIN',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 16),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                          color: AppColors.muted,
-                        ),
-                        onPressed: () => setState(
-                            () => _obscurePassword = !_obscurePassword),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // Info PIN
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.accent.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                        color: AppColors.accent.withValues(alpha: 0.2)),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.info_outline,
-                          size: 16, color: AppColors.accent),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'PIN diperoleh dari pihak sekolah.\nHubungi guru untuk mendapatkan akses.',
-                          style:
-                              TextStyle(fontSize: 11, color: AppColors.muted),
-                        ),
-                      ),
-                    ],
                   ),
                 ),
                 const SizedBox(height: 24),

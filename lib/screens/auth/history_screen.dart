@@ -18,8 +18,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
   DateTime? _startDate;
   DateTime? _endDate;
   String? _selectedStatus;
-  String? _selectedKategori;
-  List<String> _kategoriList = [];
+  String? _selectedKelas;
+  List<String> _kelasList = [];
 
   static const _statusOptions = [
     {'value': null, 'label': 'Semua Status'},
@@ -32,7 +32,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   void initState() {
     super.initState();
-    _loadKategori();
+    _loadKelas();
   }
 
   @override
@@ -41,11 +41,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     super.dispose();
   }
 
-  Future<void> _loadKategori() async {
+  Future<void> _loadKelas() async {
     final snapshot = await _fs.getAllSiswa();
     if (!mounted) return;
-    final kategoris = snapshot.map((s) => s.kategori).toSet().toList()..sort();
-    setState(() => _kategoriList = kategoris);
+    final kelasList = snapshot.map((s) => s.kelas).toSet().toList()..sort();
+    setState(() => _kelasList = kelasList);
   }
 
   Future<void> _pickDateRange() async {
@@ -81,7 +81,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       _startDate = null;
       _endDate = null;
       _selectedStatus = null;
-      _selectedKategori = null;
+      _selectedKelas = null;
       _searchController.clear();
     });
   }
@@ -90,7 +90,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     int count = 0;
     if (_startDate != null) count++;
     if (_selectedStatus != null) count++;
-    if (_selectedKategori != null) count++;
+    if (_selectedKelas != null) count++;
     if (_searchController.text.trim().isNotEmpty) count++;
     return count;
   }
@@ -111,9 +111,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
       result = result.where((a) => a.status == _selectedStatus).toList();
     }
 
-    // Filter kategori
-    if (_selectedKategori != null) {
-      result = result.where((a) => a.kategori == _selectedKategori).toList();
+    // Filter kelas
+    if (_selectedKelas != null) {
+      result = result.where((a) => a.kelas == _selectedKelas).toList();
     }
 
     // Search by name
@@ -203,12 +203,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         onTap: () => _showStatusPicker(),
                       ),
                       const SizedBox(width: 8),
-                      // Kategori
+                      // Kelas
                       _FilterChip(
-                        icon: Icons.category,
-                        label: _selectedKategori ?? 'Kategori',
-                        isActive: _selectedKategori != null,
-                        onTap: () => _showKategoriPicker(),
+                        icon: Icons.class_,
+                        label: _selectedKelas ?? 'Kelas',
+                        isActive: _selectedKelas != null,
+                        onTap: () => _showKelasPicker(),
                       ),
                     ],
                   ),
@@ -338,7 +338,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  void _showKategoriPicker() {
+  void _showKelasPicker() {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -351,32 +351,32 @@ class _HistoryScreenState extends State<HistoryScreen> {
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
               child: Text(
-                'Filter Kategori',
+                'Filter Kelas',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ),
             const Divider(height: 1),
             ListTile(
-              leading: Icon(Icons.all_inclusive, color: _selectedKategori == null ? AppColors.primary : AppColors.muted),
-              title: const Text('Semua Kategori'),
-              trailing: _selectedKategori == null
+              leading: Icon(Icons.all_inclusive, color: _selectedKelas == null ? AppColors.primary : AppColors.muted),
+              title: const Text('Semua Kelas'),
+              trailing: _selectedKelas == null
                   ? const Icon(Icons.check, color: AppColors.primary)
                   : null,
               onTap: () {
-                setState(() => _selectedKategori = null);
+                setState(() => _selectedKelas = null);
                 Navigator.pop(ctx);
               },
             ),
-            ..._kategoriList.map((k) {
-              final isSelected = _selectedKategori == k;
+            ..._kelasList.map((k) {
+              final isSelected = _selectedKelas == k;
               return ListTile(
-                leading: Icon(Icons.category, color: isSelected ? AppColors.primary : AppColors.muted),
+                leading: Icon(Icons.class_, color: isSelected ? AppColors.primary : AppColors.muted),
                 title: Text(k),
                 trailing: isSelected
                     ? const Icon(Icons.check, color: AppColors.primary)
                     : null,
                 onTap: () {
-                  setState(() => _selectedKategori = k);
+                  setState(() => _selectedKelas = k);
                   Navigator.pop(ctx);
                 },
               );
@@ -483,16 +483,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                             fontSize: 12,
                           ),
                         ),
-                        if (a.kategori.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            a.kategori,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.primary.withValues(alpha: 0.7),
-                            ),
-                          ),
-                        ],
+
                       ],
                     ),
                   ),

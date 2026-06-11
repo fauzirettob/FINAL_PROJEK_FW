@@ -11,7 +11,6 @@ void main() {
         'nama': 'Andi Pratama',
         'nis': '2024001',
         'kelas': 'X-A',
-        'kategori': 'Reguler',
         'namaOrtu': 'Bpk. Andi',
         'hpOrtu': '081234567890',
         'fotoUrl': 'https://example.com/andi.jpg',
@@ -24,7 +23,6 @@ void main() {
       expect(siswa.nama, equals('Andi Pratama'));
       expect(siswa.nis, equals('2024001'));
       expect(siswa.kelas, equals('X-A'));
-      expect(siswa.kategori, equals('Reguler'));
       expect(siswa.namaOrtu, equals('Bpk. Andi'));
       expect(siswa.hpOrtu, equals('081234567890'));
       expect(siswa.fotoUrl, equals('https://example.com/andi.jpg'));
@@ -40,7 +38,6 @@ void main() {
       expect(siswa.nama, equals(''));
       expect(siswa.nis, equals(''));
       expect(siswa.kelas, equals(''));
-      expect(siswa.kategori, equals(''));
       expect(siswa.namaOrtu, equals(''));
       expect(siswa.hpOrtu, equals(''));
       expect(siswa.fotoUrl, isNull);
@@ -53,7 +50,6 @@ void main() {
         'nama': 'Budi',
         'nis': '2024002',
         'kelas': 'X-A',
-        'kategori': 'Reguler',
         'namaOrtu': 'Bpk. Budi',
         'hpOrtu': '081234567891',
         'createdAt': Timestamp.fromDate(now),
@@ -71,7 +67,6 @@ void main() {
         'nama': 'Caca',
         'nis': '',
         'kelas': 'X-A',
-        'kategori': '',
         'namaOrtu': '',
         'hpOrtu': '',
         'createdAt': Timestamp.fromDate(now),
@@ -80,7 +75,6 @@ void main() {
       final siswa = Siswa.fromMap(data, 'siswa-4');
 
       expect(siswa.nis, equals(''));
-      expect(siswa.kategori, equals(''));
       expect(siswa.namaOrtu, equals(''));
       expect(siswa.hpOrtu, equals(''));
     });
@@ -94,7 +88,6 @@ void main() {
         nama: 'Andi Pratama',
         nis: '2024001',
         kelas: 'X-A',
-        kategori: 'Reguler',
         namaOrtu: 'Bpk. Andi',
         hpOrtu: '081234567890',
         fotoUrl: 'https://example.com/andi.jpg',
@@ -106,7 +99,6 @@ void main() {
       expect(map['nama'], equals('Andi Pratama'));
       expect(map['nis'], equals('2024001'));
       expect(map['kelas'], equals('X-A'));
-      expect(map['kategori'], equals('Reguler'));
       expect(map['namaOrtu'], equals('Bpk. Andi'));
       expect(map['hpOrtu'], equals('081234567890'));
       expect(map['fotoUrl'], equals('https://example.com/andi.jpg'));
@@ -121,7 +113,6 @@ void main() {
         nama: 'Budi',
         nis: '2024002',
         kelas: 'X-A',
-        kategori: 'Reguler',
         namaOrtu: 'Bpk. Budi',
         hpOrtu: '081234567891',
         createdAt: now,
@@ -139,7 +130,6 @@ void main() {
         nama: 'Andi Pratama',
         nis: '2024001',
         kelas: 'X-A',
-        kategori: 'Reguler',
         namaOrtu: 'Bpk. Andi',
         hpOrtu: '081234567890',
         fotoUrl: 'https://example.com/andi.jpg',
@@ -152,7 +142,6 @@ void main() {
       expect(restored.nama, equals(siswa.nama));
       expect(restored.nis, equals(siswa.nis));
       expect(restored.kelas, equals(siswa.kelas));
-      expect(restored.kategori, equals(siswa.kategori));
       expect(restored.namaOrtu, equals(siswa.namaOrtu));
       expect(restored.hpOrtu, equals(siswa.hpOrtu));
       expect(restored.fotoUrl, equals(siswa.fotoUrl));
@@ -168,7 +157,6 @@ void main() {
         nama: 'Min',
         nis: '0000',
         kelas: 'X-A',
-        kategori: 'Reguler',
         namaOrtu: 'Orang Tua',
         hpOrtu: '081234567890',
         createdAt: now,

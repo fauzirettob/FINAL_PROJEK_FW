@@ -48,11 +48,10 @@ service cloud.firestore {
       allow read: if isAuthenticated();
 
       allow create: if isAuthenticated()
-        && hasFields(['nama', 'nis', 'kelas', 'kategori', 'namaOrtu', 'hpOrtu', 'createdAt'])
+        && hasFields(['nama', 'nis', 'kelas', 'namaOrtu', 'hpOrtu', 'createdAt'])
         && isString('nama')
         && isString('nis')
         && isString('kelas')
-        && isString('kategori')
         && isString('namaOrtu')
         && isString('hpOrtu')
         && isTimestamp('createdAt');
@@ -71,11 +70,10 @@ service cloud.firestore {
       allow read: if isAuthenticated();
 
       allow create: if isAuthenticated()
-        && hasFields(['siswaId', 'siswaNama', 'kelas', 'kategori', 'tanggal', 'status', 'jam', 'guruId'])
+        && hasFields(['siswaId', 'siswaNama', 'kelas', 'tanggal', 'status', 'jam', 'guruId'])
         && isString('siswaId')
         && isString('siswaNama')
         && isString('kelas')
-        && isString('kategori')
         && isTimestamp('tanggal')
         && isString('status')
         && isString('jam')

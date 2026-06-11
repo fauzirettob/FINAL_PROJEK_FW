@@ -23,10 +23,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
   final _namaController = TextEditingController();
   final _nisController = TextEditingController();
   final _kelasController = TextEditingController();
-  final _kategoriController = TextEditingController();
   final _namaOrtuController = TextEditingController();
   final _hpOrtuController = TextEditingController();
-  final _pinOrtuController = TextEditingController();
 
   String? _searchQuery;
   String? _selectedKelas;
@@ -35,20 +33,16 @@ class _StudentsScreenState extends State<StudentsScreen> {
       _namaController.text.isNotEmpty ||
       _nisController.text.isNotEmpty ||
       _kelasController.text.isNotEmpty ||
-      _kategoriController.text.isNotEmpty ||
       _namaOrtuController.text.isNotEmpty ||
-      _hpOrtuController.text.isNotEmpty ||
-      _pinOrtuController.text.isNotEmpty;
+      _hpOrtuController.text.isNotEmpty;
 
   @override
   void dispose() {
     _namaController.dispose();
     _nisController.dispose();
     _kelasController.dispose();
-    _kategoriController.dispose();
     _namaOrtuController.dispose();
     _hpOrtuController.dispose();
-    _pinOrtuController.dispose();
     super.dispose();
   }
 
@@ -272,10 +266,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
               nama: _namaController.text.trim(),
               nis: _nisController.text.trim(),
               kelas: _kelasController.text.trim(),
-              kategori: _kategoriController.text.trim(),
               namaOrtu: _namaOrtuController.text.trim(),
               hpOrtu: _hpOrtuController.text.trim(),
-              pinOrtu: _pinOrtuController.text.trim(),
               createdAt: now,
             );
 
@@ -287,7 +279,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
               siswaId: siswa.id,
               siswaNama: siswa.nama,
               kelas: siswa.kelas,
-              kategori: siswa.kategori,
               tanggal: now,
               status: 'hadir',
               jam: jam,
@@ -301,10 +292,8 @@ class _StudentsScreenState extends State<StudentsScreen> {
             _namaController.clear();
             _nisController.clear();
             _kelasController.clear();
-            _kategoriController.clear();
             _namaOrtuController.clear();
             _hpOrtuController.clear();
-            _pinOrtuController.clear();
 
             if (!dialogContext.mounted) return;
             Navigator.of(dialogContext).pop();
@@ -462,18 +451,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
                                   ),
                                   const SizedBox(height: 12),
                                   TextFormField(
-                                    controller: _kategoriController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Kategori',
-                                      hintText: 'Contoh: Reguler, Ekstrakurikuler, Pramuka',
-                                      prefixIcon: Icon(Icons.category),
-                                    ),
-                                    validator: (v) => (v == null || v.trim().isEmpty)
-                                        ? 'Kategori tidak boleh kosong'
-                                        : null,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  TextFormField(
                                     controller: _namaOrtuController,
                                     decoration: const InputDecoration(
                                       labelText: 'Nama Orang Tua',
@@ -494,27 +471,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
                                     validator: (v) => (v == null || v.trim().isEmpty)
                                         ? 'HP orang tua tidak boleh kosong'
                                         : null,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  TextFormField(
-                                    controller: _pinOrtuController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'PIN Orang Tua (4-6 digit)',
-                                      hintText: 'Buat PIN untuk login orang tua',
-                                      prefixIcon: Icon(Icons.lock),
-                                    ),
-                                    keyboardType: TextInputType.number,
-                                    obscureText: true,
-                                    maxLength: 6,
-                                    validator: (v) {
-                                      if (v == null || v.trim().isEmpty) {
-                                        return 'PIN tidak boleh kosong';
-                                      }
-                                      if (v.trim().length < 4) {
-                                        return 'PIN minimal 4 digit';
-                                      }
-                                      return null;
-                                    },
                                   ),
                                   const SizedBox(height: 18),
                                 ],
@@ -855,8 +811,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
                       if (_searchQuery != null &&
                           !s.nama.toLowerCase().contains(_searchQuery!) &&
                           !s.nis.toLowerCase().contains(_searchQuery!) &&
-                          !s.kelas.toLowerCase().contains(_searchQuery!) &&
-                          !s.kategori.toLowerCase().contains(_searchQuery!)) {
+                          !s.kelas.toLowerCase().contains(_searchQuery!)) {
                         return false;
                       }
                       return true;
@@ -960,22 +915,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
                                                   '${s.nis} • ${s.kelas}',
                                                   style: const TextStyle(color: AppColors.muted, fontSize: 13),
                                                 ),
-                                                const SizedBox(height: 4),
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                                  decoration: BoxDecoration(
-                                                    color: AppColors.primary.withValues(alpha: 0.1),
-                                                    borderRadius: BorderRadius.circular(8),
-                                                  ),
-                                                  child: Text(
-                                                    s.kategori,
-                                                    style: const TextStyle(
-                                                      fontSize: 11,
-                                                      color: AppColors.primary,
-                                                      fontWeight: FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                ),
+
                                               ],
                                             ),
                                           ),

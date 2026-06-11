@@ -29,10 +29,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     final namaController = TextEditingController(text: _siswa.nama);
     final nisController = TextEditingController(text: _siswa.nis);
     final kelasController = TextEditingController(text: _siswa.kelas);
-    final kategoriController = TextEditingController(text: _siswa.kategori);
     final namaOrtuController = TextEditingController(text: _siswa.namaOrtu);
     final hpOrtuController = TextEditingController(text: _siswa.hpOrtu);
-    final pinOrtuController = TextEditingController(text: _siswa.pinOrtu);
     final formKey = GlobalKey<FormState>();
 
     await showDialog<void>(
@@ -65,10 +63,8 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               'nama': namaController.text.trim(),
               'nis': nis,
               'kelas': kelasController.text.trim(),
-              'kategori': kategoriController.text.trim(),
               'namaOrtu': namaOrtuController.text.trim(),
               'hpOrtu': hpOrtuController.text.trim(),
-              'pinOrtu': pinOrtuController.text.trim(),
             });
 
             if (!dialogContext.mounted) return;
@@ -189,18 +185,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                                   ),
                                   const SizedBox(height: 12),
                                   TextFormField(
-                                    controller: kategoriController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Kategori',
-                                      hintText: 'Contoh: Reguler, Ekstrakurikuler, Pramuka',
-                                      prefixIcon: Icon(Icons.category),
-                                    ),
-                                    validator: (v) => (v == null || v.trim().isEmpty)
-                                        ? 'Kategori tidak boleh kosong'
-                                        : null,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  TextFormField(
                                     controller: namaOrtuController,
                                     decoration: const InputDecoration(
                                       labelText: 'Nama Orang Tua',
@@ -221,27 +205,6 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                                     validator: (v) => (v == null || v.trim().isEmpty)
                                         ? 'HP orang tua tidak boleh kosong'
                                         : null,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  TextFormField(
-                                    controller: pinOrtuController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'PIN Orang Tua (4-6 digit)',
-                                      hintText: 'PIN untuk login orang tua',
-                                      prefixIcon: Icon(Icons.lock),
-                                    ),
-                                    keyboardType: TextInputType.number,
-                                    obscureText: true,
-                                    maxLength: 6,
-                                    validator: (v) {
-                                      if (v == null || v.trim().isEmpty) {
-                                        return 'PIN tidak boleh kosong';
-                                      }
-                                      if (v.trim().length < 4) {
-                                        return 'PIN minimal 4 digit';
-                                      }
-                                      return null;
-                                    },
                                   ),
                                   const SizedBox(height: 18),
                                 ],
@@ -330,10 +293,9 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
     namaController.dispose();
     nisController.dispose();
     kelasController.dispose();
-    kategoriController.dispose();
+
     namaOrtuController.dispose();
     hpOrtuController.dispose();
-    pinOrtuController.dispose();
   }
 
   @override
@@ -516,16 +478,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               style: const TextStyle(color: Colors.white, fontSize: 13),
             ),
           ),
-          if (_siswa.kategori.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
-              _siswa.kategori,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.8),
-                fontSize: 12,
-              ),
-            ),
-          ],
+
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -789,16 +742,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                         fontSize: 13,
                       ),
                     ),
-                    if (a.kategori.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        a.kategori,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.primary.withValues(alpha: 0.7),
-                        ),
-                      ),
-                    ],
+
                   ],
                 ),
               ),
