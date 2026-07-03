@@ -58,6 +58,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
           }
 
           setDialogState?.call(() => isLoading = true);
+          bool saved = false;
           try {
             await fs.updateSiswa(_siswa.id, {
               'nama': namaController.text.trim(),
@@ -66,6 +67,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               'namaOrtu': namaOrtuController.text.trim(),
               'hpOrtu': hpOrtuController.text.trim(),
             });
+            saved = true;
 
             if (!dialogContext.mounted) return;
             Navigator.of(dialogContext).pop();
@@ -78,7 +80,12 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               SnackBar(content: Text('Gagal menyimpan: $e')),
             );
           } finally {
-            setDialogState?.call(() => isLoading = false);
+            // Hanya reset loading jika gagal — jika berhasil, dialog sudah di-pop
+            // dan memanggil setState pada StatefulBuilder yang deaktivasi
+            // akan memicu '_dependents.isEmpty' assertion.
+            if (!saved && dialogContext.mounted) {
+              setDialogState?.call(() => isLoading = false);
+            }
           }
         }
 
@@ -86,59 +93,60 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
           backgroundColor: Colors.transparent,
           elevation: 0,
           child: Center(
-            child: Container(
-              width: 420,
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.card,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: AppColors.border, width: 1),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 22,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header
-                  Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          gradient: AppColors.gradientMain,
-                          borderRadius: BorderRadius.circular(16),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Container(
+                width: 420,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.card,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: AppColors.border, width: 1),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 22,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            gradient: AppColors.gradientMain,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Icon(Icons.edit, color: Colors.white),
                         ),
-                        child: const Icon(Icons.edit, color: Colors.white),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Edit Siswa',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.foreground,
-                            ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  StatefulBuilder(
-                    builder: (context, setStateDialog) {
-                      setDialogState = setStateDialog;
-                      return Form(
-                        key: formKey,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SingleChildScrollView(
-                              child: Column(
+                        const SizedBox(width: 12),
+                        Text(
+                          'Edit Siswa',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.foreground,
+                              ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    StatefulBuilder(
+                      builder: (context, setStateDialog) {
+                        setDialogState = setStateDialog;
+                        return Form(
+                          key: formKey,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Form fields (tanpa SingleChildScrollView — sudah di-wrapper di luar)
+                              Column(
                                 children: [
                                   TextFormField(
                                     controller: namaController,
@@ -209,80 +217,80 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                                   const SizedBox(height: 18),
                                 ],
                               ),
-                            ),
-                            // Buttons
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: SizedBox(
-                                    height: 48,
-                                    child: OutlinedButton(
-                                      onPressed: isLoading
-                                          ? null
-                                          : () => Navigator.of(dialogContext).pop(),
-                                      style: OutlinedButton.styleFrom(
-                                        foregroundColor: AppColors.muted,
-                                        side: const BorderSide(color: AppColors.border),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(16),
-                                        ),
-                                      ),
-                                      child: const Text(
-                                        'Batal',
-                                        style: TextStyle(fontWeight: FontWeight.w600),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: SizedBox(
-                                    height: 48,
-                                    child: DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        gradient: AppColors.gradientMain,
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      child: ElevatedButton.icon(
-                                        style: ElevatedButton.styleFrom(
-                                          elevation: 0,
-                                          backgroundColor: Colors.transparent,
-                                          foregroundColor: Colors.white,
+                              // Buttons
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: SizedBox(
+                                      height: 48,
+                                      child: OutlinedButton(
+                                        onPressed: isLoading
+                                            ? null
+                                            : () => Navigator.of(dialogContext).pop(),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: AppColors.muted,
+                                          side: const BorderSide(color: AppColors.border),
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(16),
                                           ),
                                         ),
-                                        onPressed: isLoading
-                                            ? null
-                                            : () async {
-                                        await onSave();
-                                              },
-                                        icon: isLoading
-                                            ? const SizedBox(
-                                                width: 18,
-                                                height: 18,
-                                                child: CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  color: Colors.white,
-                                                ),
-                                              )
-                                            : const Icon(Icons.save_rounded),
-                                        label: Text(
-                                          isLoading ? 'Menyimpan...' : 'Simpan Perubahan',
-                                          style: const TextStyle(fontWeight: FontWeight.w700),
+                                        child: const Text(
+                                          'Batal',
+                                          style: TextStyle(fontWeight: FontWeight.w600),
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ],
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: SizedBox(
+                                      height: 48,
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          gradient: AppColors.gradientMain,
+                                          borderRadius: BorderRadius.circular(16),
+                                        ),
+                                        child: ElevatedButton.icon(
+                                          style: ElevatedButton.styleFrom(
+                                            elevation: 0,
+                                            backgroundColor: Colors.transparent,
+                                            foregroundColor: Colors.white,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(16),
+                                            ),
+                                          ),
+                                          onPressed: isLoading
+                                              ? null
+                                              : () async {
+                                                  await onSave();
+                                                },
+                                          icon: isLoading
+                                              ? const SizedBox(
+                                                  width: 18,
+                                                  height: 18,
+                                                  child: CircularProgressIndicator(
+                                                    strokeWidth: 2,
+                                                    color: Colors.white,
+                                                  ),
+                                                )
+                                              : const Icon(Icons.save_rounded),
+                                          label: Text(
+                                            isLoading ? 'Menyimpan...' : 'Simpan Perubahan',
+                                            style: const TextStyle(fontWeight: FontWeight.w700),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

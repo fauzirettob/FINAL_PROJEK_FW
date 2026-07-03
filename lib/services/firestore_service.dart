@@ -2,8 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/siswa.dart';
 import '../models/absensi.dart';
 import '../models/guru.dart';
-import '../models/teguran.dart';
-import '../models/keluhan.dart';
+import '../models/admin.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db;
@@ -81,6 +80,39 @@ class FirestoreService {
     return Guru.fromMap(doc.data()!, doc.id);
   }
 
+  Future<List<Guru>> getAllGuru() async {
+    final snapshot = await _db.collection('guru').orderBy('nama').get();
+    return snapshot.docs
+        .map((doc) => Guru.fromMap(doc.data(), doc.id))
+        .toList();
+  }
+
+  Future<void> deleteGuru(String id) async {
+    await _db.collection('guru').doc(id).delete();
+  }
+
+  // --- ADMIN ---
+  Future<void> addAdmin(Admin admin) async {
+    await _db.collection('admin').doc(admin.id).set(admin.toMap());
+  }
+
+  Future<Admin?> getAdmin(String id) async {
+    final doc = await _db.collection('admin').doc(id).get();
+    if (!doc.exists) return null;
+    return Admin.fromMap(doc.data()!, doc.id);
+  }
+
+  Future<List<Admin>> getAllAdmin() async {
+    final snapshot = await _db.collection('admin').orderBy('nama').get();
+    return snapshot.docs
+        .map((doc) => Admin.fromMap(doc.data(), doc.id))
+        .toList();
+  }
+
+  Future<void> deleteAdmin(String id) async {
+    await _db.collection('admin').doc(id).delete();
+  }
+
   // --- ABSENSI ---
   Future<void> addAbsensi(Absensi absensi) async {
     await _db.collection('absensi').doc(absensi.id).set(absensi.toMap());
@@ -148,123 +180,5 @@ class FirestoreService {
     await batch.commit();
   }
 
-  // --- TEGURAN ---
 
-  Future<void> addTeguran(Teguran teguran) async {
-    await _db.collection('teguran').doc(teguran.id).set(teguran.toMap());
-  }
-
-  Stream<List<Teguran>> getTeguranStream() {
-    return _db
-        .collection('teguran')
-        .orderBy('tanggal', descending: true)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => Teguran.fromMap(doc.data(), doc.id))
-              .toList(),
-        );
-  }
-
-  Stream<List<Teguran>> getTeguranByGuruId(String guruId) {
-    return _db
-        .collection('teguran')
-        .where('guruId', isEqualTo: guruId)
-        .orderBy('tanggal', descending: true)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => Teguran.fromMap(doc.data(), doc.id))
-              .toList(),
-        );
-  }
-
-  Stream<List<Teguran>> getTeguranBySiswaId(String siswaId) {
-    return _db
-        .collection('teguran')
-        .where('siswaId', isEqualTo: siswaId)
-        .orderBy('tanggal', descending: true)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => Teguran.fromMap(doc.data(), doc.id))
-              .toList(),
-        );
-  }
-
-  Future<void> updateTeguran(String id, Map<String, dynamic> data) async {
-    await _db.collection('teguran').doc(id).update(data);
-  }
-
-  Future<void> deleteTeguran(String id) async {
-    await _db.collection('teguran').doc(id).delete();
-  }
-
-  // --- KELUHAN ---
-
-  Future<void> addKeluhan(Keluhan keluhan) async {
-    await _db.collection('keluhan').doc(keluhan.id).set(keluhan.toMap());
-  }
-
-  Stream<List<Keluhan>> getKeluhanStream() {
-    return _db
-        .collection('keluhan')
-        .orderBy('tanggal', descending: true)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => Keluhan.fromMap(doc.data(), doc.id))
-              .toList(),
-        );
-  }
-
-  /// Keluhan untuk siswa tertentu (berguna untuk guru melihat per siswa)
-  Stream<List<Keluhan>> getKeluhanBySiswaId(String siswaId) {
-    return _db
-        .collection('keluhan')
-        .where('siswaId', isEqualTo: siswaId)
-        .orderBy('tanggal', descending: true)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => Keluhan.fromMap(doc.data(), doc.id))
-              .toList(),
-        );
-  }
-
-  /// Keluhan dari orang tua tertentu berdasarkan nomor HP
-  Stream<List<Keluhan>> getKeluhanByHpOrtu(String hpOrtu) {
-    return _db
-        .collection('keluhan')
-        .where('hpOrtu', isEqualTo: hpOrtu)
-        .orderBy('tanggal', descending: true)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => Keluhan.fromMap(doc.data(), doc.id))
-              .toList(),
-        );
-  }
-
-  /// Keluhan untuk guru tertentu
-  Stream<List<Keluhan>> getKeluhanByGuruId(String guruId) {
-    return _db
-        .collection('keluhan')
-        .where('guruId', isEqualTo: guruId)
-        .orderBy('tanggal', descending: true)
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => Keluhan.fromMap(doc.data(), doc.id))
-              .toList(),
-        );
-  }
-
-  Future<void> updateKeluhan(String id, Map<String, dynamic> data) async {
-    await _db.collection('keluhan').doc(id).update(data);
-  }
-
-  Future<void> deleteKeluhan(String id) async {
-    await _db.collection('keluhan').doc(id).delete();
-  }
 }

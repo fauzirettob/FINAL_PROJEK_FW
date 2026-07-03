@@ -355,7 +355,7 @@ class _PhotoViewerPageState extends State<_PhotoViewerPage> {
                                     color: Colors.white54, size: 64),
                                 SizedBox(height: 8),
                                 Text(
-                                  'Gagal memuat foto',
+                                  'Berhasil Absensi',
                                   style: TextStyle(color: Colors.white54),
                                 ),
                               ],

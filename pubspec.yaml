@@ -34,6 +34,11 @@ dependencies:
   url_launcher: ^6.3.2
   workmanager: ^0.9.0+3
   shared_preferences: ^2.5.5
+  firebase_app_check: ^0.4.5
+  cloud_functions: ^6.3.3
+  csv: ^8.0.0
+  share_plus: ^13.2.0
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:

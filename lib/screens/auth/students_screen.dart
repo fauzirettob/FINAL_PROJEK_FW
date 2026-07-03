@@ -236,11 +236,18 @@ class _StudentsScreenState extends State<StudentsScreen> {
         Future<void> onSubmit() async {
           final auth = dialogContext.read<AuthProvider>();
           final guru = auth.guru;
+          final admin = auth.admin;
 
-          if (guru == null) {
+          // Dapatkan ID user yang bertindak (guru atau admin)
+          String userId;
+          if (guru != null) {
+            userId = guru.id;
+          } else if (admin != null) {
+            userId = admin.id;
+          } else {
             if (!dialogContext.mounted) return;
             ScaffoldMessenger.of(dialogContext).showSnackBar(
-              const SnackBar(content: Text('Guru belum tersedia.')),
+              const SnackBar(content: Text('User belum tersedia.')),
             );
             return;
           }
@@ -283,7 +290,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
               status: 'hadir',
               jam: jam,
               dikirim: false,
-              guruId: guru.id,
+              guruId: userId,
             );
 
             await fs.addAbsensi(absensi);
@@ -541,7 +548,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Belum ada siswa terdaftar.'),
-          backgroundColor: AppColors.warning,
+          backgroundColor: AppColors.accent,
         ),
       );
       return;
@@ -559,15 +566,15 @@ class _StudentsScreenState extends State<StudentsScreen> {
           content: Text(_selectedKelas != null
               ? 'Tidak ada siswa di kelas $_selectedKelas.'
               : 'Belum ada siswa terdaftar.'),
-          backgroundColor: AppColors.warning,
+          backgroundColor: AppColors.accent,
         ),
       );
       return;
     }
 
-    // Filter siswa yang punya nomor HP
+    // Filter siswa yang punya nomor HP (trim spasi)
     final siswaDenganHp = siswaFilterKelas
-        .where((s) => s.hpOrtu.isNotEmpty)
+        .where((s) => s.hpOrtu.trim().isNotEmpty)
         .toList();
 
     if (siswaDenganHp.isEmpty) {
@@ -575,7 +582,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Tidak ada siswa dengan nomor HP orang tua.'),
-          backgroundColor: AppColors.warning,
+          backgroundColor: AppColors.accent,
         ),
       );
       return;

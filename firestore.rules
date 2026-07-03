@@ -12,6 +12,11 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    function isAdmin() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/admin/$(request.auth.uid));
+    }
+
     function hasFields(requiredFields) {
       return request.resource.data.keys().hasAll(requiredFields);
     }
@@ -24,26 +29,46 @@ service cloud.firestore {
       return request.resource.data[field] is timestamp;
     }
 
-    // ─── GURU ─────────────────────────────────────────────
-    // Dokumen guru menggunakan UID user sebagai document ID.
-    // Hanya pemilik yang bisa membaca/menulis datanya sendiri.
-    match /guru/{userId} {
-      allow read: if isOwner(userId);
-      allow delete: if isOwner(userId);
+    // ─── ADMIN ────────────────────────────────────────────
+    // Dokumen admin menggunakan UID user sebagai document ID.
+    // Admin bisa CRUD; user biasa hanya bisa baca/menulis data dirinya sendiri.
+    match /admin/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow delete: if isAdmin();
 
       allow create: if isOwner(userId)
         && hasFields(['nama', 'email', 'createdAt'])
         && isString('nama')
         && isString('email')
+        && isString('role')
+        && isTimestamp('createdAt');
+
+      allow update: if isOwner(userId)
+        && isString('nama')
+        && isString('email')
+        && isString('role');
+    }
+
+    // ─── GURU ─────────────────────────────────────────────
+    // Dokumen guru menggunakan UID user sebagai document ID.
+    match /guru/{userId} {
+      allow read: if isAuthenticated();
+      // Guru bisa daftar sendiri (isOwner); Admin juga bisa create via Cloud Function
+      allow create: if (isOwner(userId) || isAdmin())
+        && hasFields(['nama', 'email', 'createdAt'])
+        && isString('nama')
+        && isString('email')
+        && isString('role')
         && isTimestamp('createdAt');
 
       allow update: if isOwner(userId)
         && isString('nama')
         && isString('email');
+
+      allow delete: if isAdmin();
     }
 
     // ─── SISWA ────────────────────────────────────────────
-    // Semua guru yang terautentikasi bisa membaca & menulis data siswa.
     match /siswa/{docId} {
       allow read: if isAuthenticated();
 
@@ -65,7 +90,6 @@ service cloud.firestore {
     }
 
     // ─── ABSENSI ──────────────────────────────────────────
-    // Semua guru yang terautentikasi bisa membaca & menulis data absensi.
     match /absensi/{docId} {
       allow read: if isAuthenticated();
 

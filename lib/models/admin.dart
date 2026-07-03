@@ -1,26 +1,26 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class Guru {
+class Admin {
   final String id;
   final String nama;
   final String email;
   final String role;
   final DateTime createdAt;
 
-  Guru({
+  Admin({
     required this.id,
     required this.nama,
     required this.email,
-    this.role = 'guru',
+    this.role = 'admin',
     required this.createdAt,
   });
 
-  factory Guru.fromMap(Map<String, dynamic> data, String id) {
-    return Guru(
+  factory Admin.fromMap(Map<String, dynamic> data, String id) {
+    return Admin(
       id: id,
       nama: data['nama'] ?? '',
       email: data['email'] ?? '',
-      role: data['role'] ?? 'guru',
+      role: data['role'] ?? 'admin',
       createdAt: data['createdAt'] is Timestamp
           ? (data['createdAt'] as Timestamp).toDate()
           : DateTime.now(),

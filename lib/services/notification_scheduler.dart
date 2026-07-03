@@ -125,7 +125,7 @@ Future<void> _handlePeriodicNotification() async {
         : semuaSiswa;
 
     final siswaDenganHp = siswaFilterKelas
-        .where((s) => s.hpOrtu.isNotEmpty)
+        .where((s) => s.hpOrtu.trim().isNotEmpty)
         .toList();
     if (siswaDenganHp.isEmpty) return;
 

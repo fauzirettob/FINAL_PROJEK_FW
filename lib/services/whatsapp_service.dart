@@ -4,16 +4,31 @@ import 'package:url_launcher/url_launcher.dart';
 
 class WhatsAppService {
   // GANTI DENGAN TOKEN FONNTE ANDA
-  static const String _token = 'eRU3ZNqSZ2gEZ6Lg7k8k';
+  static const String _token = 'kZjToexgoEcpC8zcrvYn';
   static const String _url = 'https://api.fonnte.com/send';
 
   /// Format nomor HP ke format internasional (62...)
+  /// Handle prefix: 0, 62, +62, serta spasi, dash, titik, slash, dan kurung
   static String _formatNomor(String hp) {
-    return hp.startsWith('0')
-        ? '62${hp.substring(1)}'
-        : hp.startsWith('62')
-            ? hp
-            : '62$hp';
+    // Bersihkan spasi, dash, titik, slash, kurung, dan karakter non-digit lainnya
+    String bersih = hp.trim().replaceAll(RegExp(r'[\s\-()./]'), '');
+
+    if (bersih.isEmpty) return '';
+
+    if (bersih.startsWith('+')) {
+      // +628123456789 → 628123456789
+      return bersih.substring(1);
+    }
+    if (bersih.startsWith('0')) {
+      // 08123456789 → 628123456789
+      return '62${bersih.substring(1)}';
+    }
+    if (bersih.startsWith('62')) {
+      // 628123456789 → 628123456789
+      return bersih;
+    }
+    // Fallback: 8123456789 → 628123456789
+    return '62$bersih';
   }
 
   /// Buka WhatsApp chat ke nomor orang tua siswa
@@ -49,58 +64,7 @@ Terima kasih.
 Guru SMA AS-SAMA AMBON 
 ''';
 
-    try {
-      final httpClient = client ?? http.Client();
-      try {
-        final res = await httpClient.post(
-          Uri.parse(_url),
-          headers: {'Authorization': _token},
-          body: {'target': target, 'message': pesan},
-        );
-        if (res.statusCode == 200) {
-          debugPrint('WA berhasil terkirim ke $target');
-          return true;
-        } else {
-          debugPrint('WA gagal (${res.statusCode}): ${res.body}');
-          return false;
-        }
-      } finally {
-        if (client == null) httpClient.close();
-      }
-    } catch (e) {
-      debugPrint('WA error: $e');
-      return false;
-    }
-  }
-
-  /// Kirim notifikasi teguran (peringatan) ke orang tua siswa
-  static Future<bool> kirimNotifikasiTeguran({
-    required String hpOrtu,
-    required String namaSiswa,
-    required String judul,
-    required String deskripsi,
-    required String tanggal,
-    http.Client? client,
-  }) async {
-    final target = _formatNomor(hpOrtu);
-
-    final pesan =
-        '''
-*⚠️ Teguran Siswa - SAM*
-
-Yth. Orang Tua/Wali,
-
-Putra/i Anda *$namaSiswa* mendapatkan teguran dari sekolah:
-
-📋 *Judul:* $judul
-📝 *Deskripsi:* $deskripsi
-📅 *Tanggal:* $tanggal
-
-Mohon perhatian dan bimbingan untuk putra/Putri Anda.
-
-Terima kasih.
-- Guru SMA AS-SAMA AMBON 
-''';
+    debugPrint('📤 WA kirimNotifikasi → target=$target, nama=$namaSiswa, status=$status');
 
     try {
       final httpClient = client ?? http.Client();
@@ -110,18 +74,19 @@ Terima kasih.
           headers: {'Authorization': _token},
           body: {'target': target, 'message': pesan},
         );
+        final bodyStr = res.body;
         if (res.statusCode == 200) {
-          debugPrint('WA Teguran berhasil terkirim ke $target');
+          debugPrint('✅ WA berhasil terkirim ke $target: $bodyStr');
           return true;
         } else {
-          debugPrint('WA Teguran gagal (${res.statusCode}): ${res.body}');
+          debugPrint('❌ WA gagal (${res.statusCode}) ke $target: $bodyStr');
           return false;
         }
       } finally {
         if (client == null) httpClient.close();
       }
     } catch (e) {
-      debugPrint('WA Teguran error: $e');
+      debugPrint('❌ WA error saat kirim ke $target: $e');
       return false;
     }
   }
@@ -161,6 +126,8 @@ Terima kasih.
 - Guru SMA AS-SAMA AMBON 
 ''';
 
+    debugPrint('📤 WA kirimNotifikasiRekapAbsensi → target=$target, nama=$namaSiswa, status=$status');
+
     try {
       final httpClient = client ?? http.Client();
       try {
@@ -169,18 +136,19 @@ Terima kasih.
           headers: {'Authorization': _token},
           body: {'target': target, 'message': pesan},
         );
+        final bodyStr = res.body;
         if (res.statusCode == 200) {
-          debugPrint('WA Rekap berhasil terkirim ke $target');
+          debugPrint('✅ WA Rekap berhasil terkirim ke $target: $bodyStr');
           return true;
         } else {
-          debugPrint('WA Rekap gagal (${res.statusCode}): ${res.body}');
+          debugPrint('❌ WA Rekap gagal (${res.statusCode}) ke $target: $bodyStr');
           return false;
         }
       } finally {
         if (client == null) httpClient.close();
       }
     } catch (e) {
-      debugPrint('WA Rekap error: $e');
+      debugPrint('❌ WA Rekap error saat kirim ke $target: $e');
       return false;
     }
   }

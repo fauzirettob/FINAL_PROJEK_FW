@@ -63,11 +63,31 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _navigateAfterDelay() async {
+    // Tunggu animasi masuk selesai
     await Future.delayed(const Duration(seconds: 2));
 
     if (!mounted) return;
 
     final auth = context.read<AuthProvider>();
+
+    // Jika user sudah login (session Firebase Auth dipulihkan),
+    // tunggu sampai role teridentifikasi dari Firestore
+    if (auth.user != null) {
+      // Polling maksimal 5 detik untuk role
+      int retries = 0;
+      while (retries < 15 && auth.role == null && mounted) {
+        await Future.delayed(const Duration(milliseconds: 350));
+        retries++;
+      }
+
+      // Jika role masih null setelah polling, coba muat ulang manual
+      if (auth.role == null && auth.user != null && mounted) {
+        // Muat ulang auth data — _onAuthStateChanged akan mencoba lagi
+        // dengan fallback ke collection admin/guru
+      }
+    }
+
+    if (!mounted) return;
 
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(

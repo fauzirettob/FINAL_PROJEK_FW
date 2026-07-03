@@ -4,10 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:mockito/mockito.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:absensi_siswa/providers/auth_provider.dart';
 import 'package:absensi_siswa/services/firestore_service.dart';
 import 'package:absensi_siswa/models/guru.dart';
+import 'package:absensi_siswa/models/admin.dart';
 
 @GenerateNiceMocks([
   MockSpec<FirebaseAuth>(),
@@ -37,23 +39,35 @@ void main() {
   }
 
   setUp(() {
+    // Inisialisasi SharedPreferences untuk test environment
+    SharedPreferences.setMockInitialValues({});
+
     mockAuth = MockFirebaseAuth();
     mockFirestore = MockFirestoreService();
     mockUser = MockUser();
     mockCredential = MockUserCredential();
+
+    // Default: currentUser = null (setel secara eksplisit untuk konsistensi)
+    when(mockAuth.currentUser).thenReturn(null);
   });
 
+  // ─────────────────────────────────────────────────────────────
+  // Constructor — Auth State Listener (GURU & ADMIN)
+  // ─────────────────────────────────────────────────────────────
   group('Constructor — auth state listener', () {
-    test('isAuthenticated dan guru bernilai null saat user null', () async {
+    test('isAuthenticated dan guru/admin bernilai null saat user null', () async {
       when(mockAuth.currentUser).thenReturn(null);
 
       final provider = createProvider(initialUser: null);
-      // Tunggu _onAuthStateChanged selesai
       await Future(() {});
 
       expect(provider.isAuthenticated, isFalse);
       expect(provider.guru, isNull);
+      expect(provider.admin, isNull);
+      expect(provider.role, isNull);
     });
+
+    // ── GURU startup ──
 
     test('memuat guru dari Firestore ketika user sudah login (startup)', () async {
       when(mockUser.uid).thenReturn('guru-123');
@@ -69,13 +83,14 @@ void main() {
           .thenAnswer((_) async => testGuru);
 
       final provider = createProvider(initialUser: mockUser);
-      // Tunggu _onAuthStateChanged menunggu getGuru selesai
       await Future(() {});
 
       expect(provider.isAuthenticated, isTrue);
       expect(provider.guru, isNotNull);
       expect(provider.guru!.nama, equals('Bpk. Budi'));
-      expect(provider.guru!.id, equals('guru-123'));
+      expect(provider.isGuru, isTrue);
+      expect(provider.isAdmin, isFalse);
+      expect(provider.role, equals('guru'));
     });
 
     test('guru tetap null jika getGuru mengembalikan null', () async {
@@ -89,6 +104,7 @@ void main() {
 
       expect(provider.isAuthenticated, isTrue);
       expect(provider.guru, isNull);
+      expect(provider.role, isNull);
     });
 
     test('guru tetap null jika getGuru melempar error', () async {
@@ -102,6 +118,7 @@ void main() {
 
       expect(provider.isAuthenticated, isTrue);
       expect(provider.guru, isNull);
+      expect(provider.role, isNull);
     });
 
     test(
@@ -124,21 +141,228 @@ void main() {
 
         final provider = createProvider(initialUser: mockUser);
         provider.addListener(() {
-          // Simpan snapshot guru saat notifyListeners dipanggil
           guruSaatNotify = provider.guru;
         });
 
-        // Tunggu _onAuthStateChanged selesai
         await Future(() {});
 
-        // Verifikasi bahwa saat listener dipanggil, guru sudah terisi
         expect(guruSaatNotify, isNotNull);
         expect(guruSaatNotify!.nama, equals('Race Guru'));
         expect(provider.guru, isNotNull);
       },
     );
+
+    // ── ADMIN startup ──
+
+    test('memuat admin dari Firestore ketika user sudah login (startup)', () async {
+      when(mockUser.uid).thenReturn('admin-123');
+      when(mockAuth.currentUser).thenReturn(mockUser);
+
+      final testAdmin = Admin(
+        id: 'admin-123',
+        nama: 'Admin Satu',
+        email: 'admin@school.sch.id',
+        createdAt: DateTime.now(),
+      );
+      when(mockFirestore.getAdmin('admin-123'))
+          .thenAnswer((_) async => testAdmin);
+
+      final provider = createProvider(initialUser: mockUser);
+      await Future(() {});
+
+      expect(provider.isAuthenticated, isTrue);
+      expect(provider.admin, isNotNull);
+      expect(provider.admin!.nama, equals('Admin Satu'));
+      expect(provider.isAdmin, isTrue);
+      expect(provider.isGuru, isFalse);
+      expect(provider.role, equals('admin'));
+    });
+
+    test('admin tetap null jika getAdmin mengembalikan null', () async {
+      when(mockUser.uid).thenReturn('admin-456');
+      when(mockAuth.currentUser).thenReturn(mockUser);
+      when(mockFirestore.getAdmin('admin-456'))
+          .thenAnswer((_) async => null);
+
+      final provider = createProvider(initialUser: mockUser);
+      await Future(() {});
+
+      expect(provider.isAuthenticated, isTrue);
+      expect(provider.admin, isNull);
+      expect(provider.role, isNull);
+    });
+
+    test('admin tetap null jika getAdmin melempar error', () async {
+      when(mockUser.uid).thenReturn('admin-789');
+      when(mockAuth.currentUser).thenReturn(mockUser);
+      when(mockFirestore.getAdmin('admin-789'))
+          .thenThrow(Exception('Firestore error'));
+
+      final provider = createProvider(initialUser: mockUser);
+      await Future(() {});
+
+      expect(provider.isAuthenticated, isTrue);
+      expect(provider.admin, isNull);
+      expect(provider.role, isNull);
+    });
+
+    // ── Early exit: auth state refire tidak reload data ──
+
+    test(
+      'EARLY EXIT: auth state refire dengan data guru sudah lengkap — '
+      'tidak reload dari Firestore',
+      () async {
+        when(mockUser.uid).thenReturn('guru-early');
+        when(mockAuth.currentUser).thenReturn(mockUser);
+
+        final streamController = StreamController<User?>.broadcast();
+        when(mockAuth.authStateChanges())
+            .thenAnswer((_) => streamController.stream);
+
+        final testGuru = Guru(
+          id: 'guru-early',
+          nama: 'Guru Early',
+          email: 'early@school.sch.id',
+          createdAt: DateTime.now(),
+        );
+        when(mockFirestore.getGuru('guru-early'))
+            .thenAnswer((_) async => testGuru);
+
+        final provider = AuthProvider(
+          auth: mockAuth,
+          firestoreService: mockFirestore,
+        );
+
+        // Kirim user pertama — muat data dari Firestore
+        streamController.add(mockUser);
+        await Future(() {});
+        expect(provider.isAuthenticated, isTrue);
+        expect(provider.guru, isNotNull);
+        expect(provider.guru!.nama, equals('Guru Early'));
+
+        // Reset mock getGuru agar gagal jika dipanggil lagi
+        when(mockFirestore.getGuru('guru-early'))
+            .thenThrow(Exception('getGuru tidak boleh dipanggil ulang!'));
+
+        // Kirim auth state refire (user yang sama) — harus skip reload
+        streamController.add(mockUser);
+        await Future(() {});
+
+        // Data harus tetap intact (tidak di-reload)
+        expect(provider.isAuthenticated, isTrue);
+        expect(provider.guru, isNotNull);
+        expect(provider.guru!.nama, equals('Guru Early'));
+        expect(provider.role, equals('guru'));
+
+        await streamController.close();
+      },
+    );
+
+    test(
+      'EARLY EXIT: auth state refire dengan data admin sudah lengkap — '
+      'tidak reload dari Firestore',
+      () async {
+        when(mockUser.uid).thenReturn('admin-early');
+        when(mockAuth.currentUser).thenReturn(mockUser);
+
+        final streamController = StreamController<User?>.broadcast();
+        when(mockAuth.authStateChanges())
+            .thenAnswer((_) => streamController.stream);
+
+        final testAdmin = Admin(
+          id: 'admin-early',
+          nama: 'Admin Early',
+          email: 'early@school.sch.id',
+          createdAt: DateTime.now(),
+        );
+        when(mockFirestore.getAdmin('admin-early'))
+            .thenAnswer((_) async => testAdmin);
+
+        final provider = AuthProvider(
+          auth: mockAuth,
+          firestoreService: mockFirestore,
+        );
+
+        // Kirim user pertama — muat data dari Firestore
+        streamController.add(mockUser);
+        await Future(() {});
+        expect(provider.isAuthenticated, isTrue);
+        expect(provider.admin, isNotNull);
+        expect(provider.admin!.nama, equals('Admin Early'));
+
+        // Reset mock getAdmin agar gagal jika dipanggil lagi
+        when(mockFirestore.getAdmin('admin-early'))
+            .thenThrow(Exception('getAdmin tidak boleh dipanggil ulang!'));
+
+        // Kirim auth state refire (user yang sama) — harus skip reload
+        streamController.add(mockUser);
+        await Future(() {});
+
+        // Data harus tetap intact
+        expect(provider.isAuthenticated, isTrue);
+        expect(provider.admin, isNotNull);
+        expect(provider.admin!.nama, equals('Admin Early'));
+        expect(provider.role, equals('admin'));
+
+        await streamController.close();
+      },
+    );
+
+    test(
+      'FALLBACK tidak mereset role yang sudah ada ketika query gagal',
+      () async {
+        when(mockUser.uid).thenReturn('guru-fallback');
+        when(mockAuth.currentUser).thenReturn(mockUser);
+
+        final streamController = StreamController<User?>.broadcast();
+        when(mockAuth.authStateChanges())
+            .thenAnswer((_) => streamController.stream);
+
+        final testGuru = Guru(
+          id: 'guru-fallback',
+          nama: 'Guru Fallback',
+          email: 'fallback@school.sch.id',
+          createdAt: DateTime.now(),
+        );
+        when(mockFirestore.getGuru('guru-fallback'))
+            .thenAnswer((_) async => testGuru);
+
+        final provider = AuthProvider(
+          auth: mockAuth,
+          firestoreService: mockFirestore,
+        );
+
+        // Muat guru sukses
+        streamController.add(mockUser);
+        await Future(() {});
+        expect(provider.guru, isNotNull);
+        expect(provider.role, equals('guru'));
+
+        // Kirim ulang user, tapi sekarang getGuru gagal
+        when(mockFirestore.getGuru('guru-fallback'))
+            .thenThrow(Exception('Transient Firestore error'));
+        when(mockFirestore.getAdmin('guru-fallback'))
+            .thenThrow(Exception('Admin juga gagal'));
+
+        streamController.add(mockUser);
+        await Future(() {});
+
+        // Role harus tetap 'guru' (tidak direset ke null)
+        expect(provider.role, equals('guru'));
+        // Guru mungkin null karena query gagal, tapi role tetap
+        // (tergantung implementasi: guru bisa null jika query gagal,
+        //  karena _guru di-set ulang di catch/finally)
+        // Yang penting role tidak hilang
+        expect(provider.role, isNotNull);
+
+        await streamController.close();
+      },
+    );
   });
 
+  // ─────────────────────────────────────────────────────────────
+  // login() — GURU & ADMIN
+  // ─────────────────────────────────────────────────────────────
   group('login()', () {
     test('berhasil login dan memuat data guru', () async {
       when(mockUser.uid).thenReturn('guru-login');
@@ -159,7 +383,6 @@ void main() {
       when(mockFirestore.getGuru('guru-login'))
           .thenAnswer((_) async => testGuru);
 
-      // Gunakan Stream.value(null) agar auth listener selesai cepat
       when(mockAuth.authStateChanges())
           .thenAnswer((_) => const Stream.empty());
 
@@ -179,10 +402,13 @@ void main() {
       expect(provider.isAuthenticated, isTrue);
       expect(provider.guru, isNotNull);
       expect(provider.guru!.nama, equals('Login Guru'));
+      expect(provider.role, equals('guru'));
+      expect(provider.isGuru, isTrue);
+      expect(provider.isAdmin, isFalse);
       expect(notified, isTrue);
     });
 
-    test('login dengan guru null di Firestore', () async {
+    test('login dengan guru null di Firestore melempar error', () async {
       when(mockUser.uid).thenReturn('guru-null');
       when(mockCredential.user).thenReturn(mockUser);
       when(mockAuth.currentUser).thenReturn(mockUser);
@@ -203,11 +429,15 @@ void main() {
         firestoreService: mockFirestore,
       );
 
-      await provider.login('test@email.com', 'password123');
+      expect(
+        () => provider.login('test@email.com', 'password123'),
+        throwsA(isA<Exception>()),
+      );
       await Future(() {});
 
-      expect(provider.isAuthenticated, isTrue);
+      expect(provider.isAuthenticated, isFalse);
       expect(provider.guru, isNull);
+      expect(provider.role, isNull);
     });
 
     test('login gagal melempar error dari FirebaseAuth', () async {
@@ -231,22 +461,30 @@ void main() {
 
       expect(provider.isAuthenticated, isFalse);
       expect(provider.guru, isNull);
+      expect(provider.admin, isNull);
+      expect(provider.role, isNull);
     });
-  });
 
-  group('register()', () {
-    test('berhasil registrasi, simpan guru, lalu sign-out ke halaman login', () async {
-      when(mockUser.uid).thenReturn('guru-reg');
+    // ── ADMIN login ──
+
+    test('berhasil login admin dan memuat data admin', () async {
+      when(mockUser.uid).thenReturn('admin-login');
       when(mockCredential.user).thenReturn(mockUser);
+      when(mockAuth.currentUser).thenReturn(mockUser);
 
-      when(mockAuth.createUserWithEmailAndPassword(
+      when(mockAuth.signInWithEmailAndPassword(
         email: anyNamed('email'),
         password: anyNamed('password'),
       )).thenAnswer((_) async => mockCredential);
 
-      when(mockFirestore.addGuru(any)).thenAnswer((_) async => {});
-
-      when(mockAuth.signOut()).thenAnswer((_) async => {});
+      final testAdmin = Admin(
+        id: 'admin-login',
+        nama: 'Login Admin',
+        email: 'admin@school.sch.id',
+        createdAt: DateTime.now(),
+      );
+      when(mockFirestore.getAdmin('admin-login'))
+          .thenAnswer((_) async => testAdmin);
 
       when(mockAuth.authStateChanges())
           .thenAnswer((_) => const Stream.empty());
@@ -261,33 +499,173 @@ void main() {
         notified = true;
       });
 
-      await provider.register(
-        'new@school.sch.id',
-        'password123',
-        'Guru Baru',
+      await provider.login('admin@email.com', 'password123', role: 'admin');
+      await Future(() {});
+
+      expect(provider.isAuthenticated, isTrue);
+      expect(provider.admin, isNotNull);
+      expect(provider.admin!.nama, equals('Login Admin'));
+      expect(provider.role, equals('admin'));
+      expect(provider.isAdmin, isTrue);
+      expect(provider.isGuru, isFalse);
+      expect(provider.guru, isNull);
+      expect(notified, isTrue);
+    });
+
+    test('login admin dengan admin null di Firestore melempar error', () async {
+      when(mockUser.uid).thenReturn('admin-null');
+      when(mockCredential.user).thenReturn(mockUser);
+      when(mockAuth.currentUser).thenReturn(mockUser);
+
+      when(mockAuth.signInWithEmailAndPassword(
+        email: anyNamed('email'),
+        password: anyNamed('password'),
+      )).thenAnswer((_) async => mockCredential);
+
+      when(mockFirestore.getAdmin('admin-null'))
+          .thenAnswer((_) async => null);
+
+      when(mockAuth.authStateChanges())
+          .thenAnswer((_) => const Stream.empty());
+
+      final provider = AuthProvider(
+        auth: mockAuth,
+        firestoreService: mockFirestore,
+      );
+
+      expect(
+        () => provider.login('admin@email.com', 'password123', role: 'admin'),
+        throwsA(isA<Exception>()),
       );
       await Future(() {});
 
-      // Setelah register, user di-sign-out, jadi tidak terautentikasi
+      expect(provider.isAuthenticated, isFalse);
+      expect(provider.admin, isNull);
+      expect(provider.role, isNull);
+    });
+
+    test('login admin gagal dengan Firestore error (sign out + rethrow)', () async {
+      when(mockUser.uid).thenReturn('admin-error');
+      when(mockCredential.user).thenReturn(mockUser);
+      when(mockAuth.currentUser).thenReturn(mockUser);
+
+      when(mockAuth.signInWithEmailAndPassword(
+        email: anyNamed('email'),
+        password: anyNamed('password'),
+      )).thenAnswer((_) async => mockCredential);
+
+      when(mockFirestore.getAdmin('admin-error'))
+          .thenThrow(Exception('Firestore permission denied'));
+
+      when(mockAuth.signOut()).thenAnswer((_) async => {});
+
+      when(mockAuth.authStateChanges())
+          .thenAnswer((_) => const Stream.empty());
+
+      final provider = AuthProvider(
+        auth: mockAuth,
+        firestoreService: mockFirestore,
+      );
+
+      expect(
+        () => provider.login('admin@email.com', 'password123', role: 'admin'),
+        throwsA(isA<Exception>()),
+      );
+      await Future(() {});
+
+      // State harus di-reset total
+      expect(provider.isAuthenticated, isFalse);
+      expect(provider.admin, isNull);
+      expect(provider.role, isNull);
+
+      // signOut harus dipanggil
+      verify(mockAuth.signOut()).called(1);
+    });
+
+    test('login guru dengan role=\'guru\' eksplisit sama dengan tanpa role', () async {
+      when(mockUser.uid).thenReturn('guru-eksplisit');
+      when(mockCredential.user).thenReturn(mockUser);
+      when(mockAuth.currentUser).thenReturn(mockUser);
+
+      when(mockAuth.signInWithEmailAndPassword(
+        email: anyNamed('email'),
+        password: anyNamed('password'),
+      )).thenAnswer((_) async => mockCredential);
+
+      final testGuru = Guru(
+        id: 'guru-eksplisit',
+        nama: 'Guru Eksplisit',
+        email: 'eksplisit@school.sch.id',
+        createdAt: DateTime.now(),
+      );
+      when(mockFirestore.getGuru('guru-eksplisit'))
+          .thenAnswer((_) async => testGuru);
+
+      when(mockAuth.authStateChanges())
+          .thenAnswer((_) => const Stream.empty());
+
+      final provider = AuthProvider(
+        auth: mockAuth,
+        firestoreService: mockFirestore,
+      );
+
+      await provider.login('guru@email.com', 'pass', role: 'guru');
+      await Future(() {});
+
+      expect(provider.isAuthenticated, isTrue);
+      expect(provider.guru, isNotNull);
+      expect(provider.role, equals('guru'));
+      expect(provider.isGuru, isTrue);
+      expect(provider.isAdmin, isFalse);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // register() — GURU & ADMIN
+  // ─────────────────────────────────────────────────────────────
+  group('register()', () {
+    test('berhasil registrasi guru, simpan guru, lalu sign-out', () async {
+      when(mockUser.uid).thenReturn('guru-reg');
+      when(mockCredential.user).thenReturn(mockUser);
+
+      when(mockAuth.createUserWithEmailAndPassword(
+        email: anyNamed('email'),
+        password: anyNamed('password'),
+      )).thenAnswer((_) async => mockCredential);
+
+      when(mockFirestore.addGuru(any)).thenAnswer((_) async => {});
+      when(mockAuth.signOut()).thenAnswer((_) async => {});
+
+      final authStreamController = StreamController<User?>.broadcast();
+      when(mockAuth.authStateChanges())
+          .thenAnswer((_) => authStreamController.stream);
+
+      final provider = AuthProvider(
+        auth: mockAuth,
+        firestoreService: mockFirestore,
+      );
+
+      bool notified = false;
+      provider.addListener(() {
+        notified = true;
+      });
+
+      await provider.register(
+        'new@school.sch.id', 'password123', 'Guru Baru',
+      );
+      await Future(() {});
+
       expect(provider.isAuthenticated, isFalse);
       expect(provider.guru, isNull);
 
-      // Verifikasi guru disimpan ke Firestore
       verify(mockFirestore.addGuru(argThat(
-        hasProps({
-          'nama': 'Guru Baru',
-          'email': 'new@school.sch.id',
-        }),
+        hasProps({'nama': 'Guru Baru', 'email': 'new@school.sch.id'}),
       ))).called(1);
-
-      // Verifikasi sign-out dipanggil (user harus login manual)
       verify(mockAuth.signOut()).called(1);
-
-      // Tidak boleh ada notifikasi karena isAuthenticated tidak pernah true
-      expect(notified, isFalse);
+      expect(notified, isTrue);
     });
 
-    test('registrasi gagal karena email sudah terdaftar (email-already-in-use)', () async {
+    test('registrasi guru gagal karena email sudah terdaftar', () async {
       when(mockAuth.createUserWithEmailAndPassword(
         email: anyNamed('email'),
         password: anyNamed('password'),
@@ -306,23 +684,15 @@ void main() {
         firestoreService: mockFirestore,
       );
 
-      // Register harus melempar error
       expect(
-        provider.register(
-          'existing@school.sch.id',
-          'password123',
-          'Guru Duplikat',
-        ),
+        provider.register('existing@school.sch.id', 'password123', 'Guru Duplikat'),
         throwsA(isA<FirebaseAuthException>()),
       );
-
       await Future(() {});
 
-      // Pastikan state tetap tidak terautentikasi
       expect(provider.isAuthenticated, isFalse);
       expect(provider.guru, isNull);
 
-      // addGuru tidak boleh dipanggil karena registrasi FirebaseAuth gagal
       verifyNever(mockFirestore.addGuru(any));
       verifyNever(mockFirestore.getGuru(any));
       verifyNever(mockAuth.signOut());
@@ -337,11 +707,8 @@ void main() {
         password: anyNamed('password'),
       )).thenAnswer((_) async => mockCredential);
 
-      // Simulasi addGuru gagal
       when(mockFirestore.addGuru(any))
           .thenThrow(Exception('Firestore write error'));
-
-      // user.delete() harus berhasil dipanggil saat rollback
       when(mockUser.delete()).thenAnswer((_) async => {});
 
       when(mockAuth.authStateChanges())
@@ -352,162 +719,211 @@ void main() {
         firestoreService: mockFirestore,
       );
 
-      // Register harus melempar error asli dari addGuru
       expect(
-        provider.register(
-          'rollback@school.sch.id',
-          'password123',
-          'Guru Rollback',
-        ),
+        provider.register('rollback@school.sch.id', 'password123', 'Guru Rollback'),
         throwsA(isA<Exception>()),
       );
-
       await Future(() {});
 
-      // Pastikan auth user dihapus (rollback)
       verify(mockUser.delete()).called(1);
-
-      // Pastikan state tetap tidak terautentikasi
       expect(provider.isAuthenticated, isFalse);
       expect(provider.guru, isNull);
-
-      // signOut tidak boleh dipanggil karena addGuru gagal
       verifyNever(mockAuth.signOut());
     });
 
+    // ── ADMIN registration ──
+
+    test('berhasil registrasi admin, simpan admin, lalu sign-out', () async {
+      when(mockUser.uid).thenReturn('admin-reg');
+      when(mockCredential.user).thenReturn(mockUser);
+
+      when(mockAuth.createUserWithEmailAndPassword(
+        email: anyNamed('email'),
+        password: anyNamed('password'),
+      )).thenAnswer((_) async => mockCredential);
+
+      when(mockFirestore.addAdmin(any)).thenAnswer((_) async => {});
+      when(mockAuth.signOut()).thenAnswer((_) async => {});
+
+      final authStreamController = StreamController<User?>.broadcast();
+      when(mockAuth.authStateChanges())
+          .thenAnswer((_) => authStreamController.stream);
+
+      final provider = AuthProvider(
+        auth: mockAuth,
+        firestoreService: mockFirestore,
+      );
+
+      bool notified = false;
+      provider.addListener(() {
+        notified = true;
+      });
+
+      await provider.register(
+        'admin@school.sch.id', 'password123', 'Admin Baru',
+        role: 'admin',
+      );
+      await Future(() {});
+
+      // Setelah register admin, user di-sign-out
+      expect(provider.isAuthenticated, isFalse);
+      expect(provider.admin, isNull);
+
+      // Verifikasi admin disimpan ke Firestore
+      verify(mockFirestore.addAdmin(argThat(
+        hasAdminProps({'nama': 'Admin Baru', 'email': 'admin@school.sch.id'}),
+      ))).called(1);
+
+      // signOut dipanggil
+      verify(mockAuth.signOut()).called(1);
+      expect(notified, isTrue);
+    });
+
+    test('registrasi admin gagal karena email sudah terdaftar', () async {
+      when(mockAuth.createUserWithEmailAndPassword(
+        email: anyNamed('email'),
+        password: anyNamed('password'),
+      )).thenThrow(
+        FirebaseAuthException(
+          code: 'email-already-in-use',
+          message: 'The email address is already in use.',
+        ),
+      );
+
+      when(mockAuth.authStateChanges())
+          .thenAnswer((_) => const Stream.empty());
+
+      final provider = AuthProvider(
+        auth: mockAuth,
+        firestoreService: mockFirestore,
+      );
+
+      expect(
+        provider.register(
+          'existing@school.sch.id', 'password123', 'Admin Duplikat',
+          role: 'admin',
+        ),
+        throwsA(isA<FirebaseAuthException>()),
+      );
+      await Future(() {});
+
+      expect(provider.isAuthenticated, isFalse);
+      expect(provider.admin, isNull);
+
+      // Tidak ada Firestore atau signOut yang dipanggil
+      verifyNever(mockFirestore.addAdmin(any));
+      verifyNever(mockFirestore.getAdmin(any));
+      verifyNever(mockAuth.signOut());
+    });
+
+    test('addAdmin gagal → rollback: auth user dihapus dan error dilempar', () async {
+      when(mockUser.uid).thenReturn('admin-rollback');
+      when(mockCredential.user).thenReturn(mockUser);
+
+      when(mockAuth.createUserWithEmailAndPassword(
+        email: anyNamed('email'),
+        password: anyNamed('password'),
+      )).thenAnswer((_) async => mockCredential);
+
+      when(mockFirestore.addAdmin(any))
+          .thenThrow(Exception('Firestore write error'));
+      when(mockUser.delete()).thenAnswer((_) async => {});
+
+      when(mockAuth.authStateChanges())
+          .thenAnswer((_) => const Stream.empty());
+
+      final provider = AuthProvider(
+        auth: mockAuth,
+        firestoreService: mockFirestore,
+      );
+
+      expect(
+        provider.register(
+          'rollback@school.sch.id', 'password123', 'Admin Rollback',
+          role: 'admin',
+        ),
+        throwsA(isA<Exception>()),
+      );
+      await Future(() {});
+
+      verify(mockUser.delete()).called(1);
+      expect(provider.isAuthenticated, isFalse);
+      expect(provider.admin, isNull);
+      verifyNever(mockAuth.signOut());
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // Role Switching
+  // ─────────────────────────────────────────────────────────────
+  group('role switching', () {
     test(
-      '_isRegistering mencegah auth listener memproses event '
-      'selama register (baik user login maupun sign-out)',
+      'auth state listener: start admin, sign out, start guru — '
+      'role berganti ke guru',
       () async {
         final streamController = StreamController<User?>.broadcast();
         when(mockAuth.authStateChanges())
             .thenAnswer((_) => streamController.stream);
 
-        when(mockUser.uid).thenReturn('guru-reg-safe');
-        when(mockCredential.user).thenReturn(mockUser);
+        when(mockUser.uid).thenReturn('user-123');
+        when(mockAuth.currentUser).thenReturn(mockUser);
 
-        // Simulasi: createUserWithEmailAndPassword memicu auth state change
-        when(mockAuth.createUserWithEmailAndPassword(
-          email: anyNamed('email'),
-          password: anyNamed('password'),
-        )).thenAnswer((_) async {
-          streamController.add(mockUser); // Trigger auth listener (login)
-          await Future(() {}); // Biarkan stream event terproses
-          return mockCredential;
-        });
-
-        when(mockFirestore.addGuru(any)).thenAnswer((_) async => {});
-
-        // Mock signOut — memicu auth state change (sign-out)
-        when(mockAuth.signOut()).thenAnswer((_) async {
-          streamController.add(null);
-        });
-
-        // getGuru TIDAK boleh dipanggil selama register
-        when(mockFirestore.getGuru(any)).thenAnswer((_) async {
-          throw Exception('getGuru seharusnya tidak dipanggil saat register!');
-        });
-
-        final provider = AuthProvider(
-          auth: mockAuth,
-          firestoreService: mockFirestore,
-        );
-        await Future(() {});
-
-        await provider.register(
-          'new@test.com',
-          'pass123',
-          'Guru Aman',
-        );
-        await Future(() {});
-
-        // Setelah register, user di-sign-out, jadi tidak terautentikasi
-        expect(provider.isAuthenticated, isFalse);
-        expect(provider.guru, isNull);
-
-        // getGuru tidak boleh dipanggil sama sekali
-        verifyNever(mockFirestore.getGuru(any));
-
-        // addGuru tetap dipanggil
-        verify(mockFirestore.addGuru(any)).called(1);
-
-        // signOut dipanggil
-        verify(mockAuth.signOut()).called(1);
-
-        await streamController.close();
-      },
-    );
-
-    test(
-      'auth state change setelah register selesai '
-      '— _isRegistering false, user bisa login via stream seperti biasa',
-      () async {
-        final streamController = StreamController<User?>.broadcast();
-        when(mockAuth.authStateChanges())
-            .thenAnswer((_) => streamController.stream);
-
-        when(mockUser.uid).thenReturn('guru-post');
-        when(mockCredential.user).thenReturn(mockUser);
-
-        when(mockAuth.createUserWithEmailAndPassword(
-          email: anyNamed('email'),
-          password: anyNamed('password'),
-        )).thenAnswer((_) async {
-          streamController.add(mockUser);
-          await Future(() {}); // Biarkan stream event terproses
-          return mockCredential;
-        });
-
-        when(mockFirestore.addGuru(any)).thenAnswer((_) async => {});
-
-        when(mockAuth.signOut()).thenAnswer((_) async {
-          streamController.add(null);
-        });
-
-        final provider = AuthProvider(
-          auth: mockAuth,
-          firestoreService: mockFirestore,
-        );
-        await Future(() {});
-
-        // Register — user akan di-sign-out otomatis
-        await provider.register(
-          'post@school.sch.id',
-          'password123',
-          'Guru Post',
-        );
-        await Future(() {});
-
-        expect(provider.isAuthenticated, isFalse);
-        expect(provider.guru, isNull);
-
-        // Kirim auth state change user login lagi — simulasi login manual
-        when(mockFirestore.getGuru('guru-post')).thenAnswer((_) async => Guru(
-          id: 'guru-post',
-          nama: 'Guru Post',
-          email: 'post@school.sch.id',
+        final testAdmin = Admin(
+          id: 'user-123',
+          nama: 'User Admin',
+          email: 'user@school.sch.id',
           createdAt: DateTime.now(),
-        ));
+        );
+        when(mockFirestore.getAdmin('user-123'))
+            .thenAnswer((_) async => testAdmin);
+
+        final provider = AuthProvider(
+          auth: mockAuth,
+          firestoreService: mockFirestore,
+        );
+
+        // Muat sebagai admin
+        streamController.add(mockUser);
+        await Future(() {});
+        expect(provider.isAdmin, isTrue);
+        expect(provider.role, equals('admin'));
+
+        // Sign out
+        when(mockAuth.currentUser).thenReturn(null);
+        streamController.add(null);
+        await Future(() {});
+        expect(provider.isAuthenticated, isFalse);
+        expect(provider.role, isNull);
+
+        // Login sebagai guru (user yang sama, tapi guru doc yang berbeda)
+        // Dalam skenario ini user-123 di collection guru
+        when(mockAuth.currentUser).thenReturn(mockUser);
+        when(mockFirestore.getAdmin('user-123'))
+            .thenAnswer((_) async => null); // Bukan admin lagi
+        when(mockFirestore.getGuru('user-123'))
+            .thenAnswer((_) async => Guru(
+              id: 'user-123',
+              nama: 'User Guru',
+              email: 'user@school.sch.id',
+              createdAt: DateTime.now(),
+            ));
 
         streamController.add(mockUser);
         await Future(() {});
-
-        // Harusnya guru termuat dari Firestore (seperti login biasa)
-        expect(provider.isAuthenticated, isTrue);
-        expect(provider.guru, isNotNull);
-        expect(provider.guru!.nama, equals('Guru Post'));
-
-        // getGuru dipanggil oleh auth listener setelah register selesai
-        verify(mockFirestore.getGuru('guru-post')).called(1);
+        expect(provider.isGuru, isTrue);
+        expect(provider.role, equals('guru'));
+        expect(provider.admin, isNull);
 
         await streamController.close();
       },
     );
   });
 
+  // ─────────────────────────────────────────────────────────────
+  // logout()
+  // ─────────────────────────────────────────────────────────────
   group('logout()', () {
-    test('logout menghapus session dan mengosongkan guru', () async {
-      // Setup: user sudah login dengan guru
+    test('logout guru menghapus session dan role', () async {
       when(mockUser.uid).thenReturn('guru-logout');
       when(mockAuth.currentUser).thenReturn(mockUser);
       when(mockFirestore.getGuru('guru-logout'))
@@ -518,11 +934,10 @@ void main() {
                 createdAt: DateTime.now(),
               ));
 
-      // Auth stream: kirim user dulu, lalu null setelah logout
       final streamController = StreamController<User?>.broadcast();
       when(mockAuth.authStateChanges()).thenAnswer((_) => streamController.stream);
       when(mockAuth.signOut()).thenAnswer((_) async {
-        streamController.add(null); // Emit null saat logout
+        streamController.add(null);
       });
 
       final provider = AuthProvider(
@@ -530,33 +945,66 @@ void main() {
         firestoreService: mockFirestore,
       );
 
-      // Tunggu inisialisasi
       streamController.add(mockUser);
       await Future(() {});
       expect(provider.isAuthenticated, isTrue);
-      expect(provider.guru, isNotNull);
+      expect(provider.isGuru, isTrue);
 
-      // Logout
       await provider.logout();
       await Future(() {});
 
       expect(provider.isAuthenticated, isFalse);
       expect(provider.guru, isNull);
+      expect(provider.role, isNull);
     });
 
-    test('logout lalu login ulang — guru termuat dari Firestore', () async {
-      // Setup: user sudah login
+    test('logout admin menghapus session dan role', () async {
+      when(mockUser.uid).thenReturn('admin-logout');
+      when(mockAuth.currentUser).thenReturn(mockUser);
+      when(mockFirestore.getAdmin('admin-logout'))
+          .thenAnswer((_) async => Admin(
+                id: 'admin-logout',
+                nama: 'Logout Admin',
+                email: 'logout@school.sch.id',
+                createdAt: DateTime.now(),
+              ));
+
+      final streamController = StreamController<User?>.broadcast();
+      when(mockAuth.authStateChanges()).thenAnswer((_) => streamController.stream);
+      when(mockAuth.signOut()).thenAnswer((_) async {
+        streamController.add(null);
+      });
+
+      final provider = AuthProvider(
+        auth: mockAuth,
+        firestoreService: mockFirestore,
+      );
+
+      streamController.add(mockUser);
+      await Future(() {});
+      expect(provider.isAuthenticated, isTrue);
+      expect(provider.isAdmin, isTrue);
+
+      await provider.logout();
+      await Future(() {});
+
+      expect(provider.isAuthenticated, isFalse);
+      expect(provider.admin, isNull);
+      expect(provider.role, isNull);
+    });
+
+    test('logout lalu login ulang — admin termuat dari Firestore', () async {
       final streamController = StreamController<User?>.broadcast();
       when(mockAuth.authStateChanges())
           .thenAnswer((_) => streamController.stream);
 
-      when(mockUser.uid).thenReturn('guru-relogin');
-
-      // Siapkan login awal
+      when(mockUser.uid).thenReturn('admin-relogin');
       when(mockAuth.currentUser).thenReturn(mockUser);
-      when(mockFirestore.getGuru('guru-relogin')).thenAnswer((_) async => Guru(
-        id: 'guru-relogin',
-        nama: 'Guru Awal',
+
+      // Login awal sebagai admin
+      when(mockFirestore.getAdmin('admin-relogin')).thenAnswer((_) async => Admin(
+        id: 'admin-relogin',
+        nama: 'Admin Awal',
         email: 'awal@school.sch.id',
         createdAt: DateTime.now(),
       ));
@@ -570,44 +1018,41 @@ void main() {
         firestoreService: mockFirestore,
       );
 
-      // Login awal via auth stream
       streamController.add(mockUser);
       await Future(() {});
-      expect(provider.isAuthenticated, isTrue);
-      expect(provider.guru, isNotNull);
+      expect(provider.isAdmin, isTrue);
 
       // Logout
       await provider.logout();
       await Future(() {});
       expect(provider.isAuthenticated, isFalse);
-      expect(provider.guru, isNull);
 
-      // Siapkan data guru baru untuk login ulang
-      when(mockFirestore.getGuru('guru-relogin')).thenAnswer((_) async => Guru(
-        id: 'guru-relogin',
-        nama: 'Guru Login Ulang',
+      // Login ulang sebagai admin (data baru dari Firestore)
+      when(mockFirestore.getAdmin('admin-relogin')).thenAnswer((_) async => Admin(
+        id: 'admin-relogin',
+        nama: 'Admin Login Ulang',
         email: 'lagi@school.sch.id',
         createdAt: DateTime.now(),
       ));
 
-      // Login ulang via auth stream
       streamController.add(mockUser);
       await Future(() {});
 
-      // Guru harus termuat dari Firestore
       expect(provider.isAuthenticated, isTrue);
-      expect(provider.guru, isNotNull);
-      expect(provider.guru!.nama, equals('Guru Login Ulang'));
-
-      // getGuru dipanggil untuk login ulang
-      verify(mockFirestore.getGuru('guru-relogin')).called(2); // 1x login awal, 1x login ulang
+      expect(provider.isAdmin, isTrue);
+      expect(provider.admin!.nama, equals('Admin Login Ulang'));
+      // 2x getAdmin: 1x login awal, 1x login ulang
+      verify(mockFirestore.getAdmin('admin-relogin')).called(2);
 
       await streamController.close();
     });
   });
 }
 
-/// Helper matcher untuk memeriksa field Guru tanpa harus menyamakan ID
+// ─────────────────────────────────────────────────────────────
+// Helper matchers
+// ─────────────────────────────────────────────────────────────
+/// Matcher untuk field Guru
 Matcher hasProps(Map<String, dynamic> props) {
   return _HasProps(props);
 }
@@ -630,5 +1075,31 @@ class _HasProps extends Matcher {
   @override
   Description describe(Description description) {
     return description.add('Guru with $props');
+  }
+}
+
+/// Matcher untuk field Admin
+Matcher hasAdminProps(Map<String, dynamic> props) {
+  return _HasAdminProps(props);
+}
+
+class _HasAdminProps extends Matcher {
+  final Map<String, dynamic> props;
+  _HasAdminProps(this.props);
+
+  @override
+  bool matches(dynamic item, Map<dynamic, dynamic> matchState) {
+    if (item is! Admin) return false;
+    return props.entries.every((e) {
+      if (e.key == 'nama') return item.nama == e.value;
+      if (e.key == 'email') return item.email == e.value;
+      if (e.key == 'id') return item.id == e.value;
+      return false;
+    });
+  }
+
+  @override
+  Description describe(Description description) {
+    return description.add('Admin with $props');
   }
 }

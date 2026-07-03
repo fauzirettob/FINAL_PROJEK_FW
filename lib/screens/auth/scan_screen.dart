@@ -119,15 +119,21 @@ class _ScanScreenState extends State<ScanScreen> {
         return;
       }
 
-      // Ambil data guru yang sedang login
+      // Ambil data user yang sedang login (guru atau admin)
       if (!mounted) return;
       final auth = context.read<AuthProvider>();
       final guru = auth.guru;
+      final admin = auth.admin;
 
-      if (guru == null) {
+      String userId;
+      if (guru != null) {
+        userId = guru.id;
+      } else if (admin != null) {
+        userId = admin.id;
+      } else {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Guru belum ditemukan. Silakan login ulang.')),
+          const SnackBar(content: Text('User belum ditemukan. Silakan login ulang.')),
         );
         setState(() => _isProcessing = false);
         return;
@@ -158,8 +164,8 @@ class _ScanScreenState extends State<ScanScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Foto gagal diupload, absensi tetap tersimpan'),
-              backgroundColor: AppColors.warning,
+              content: const Text('Berhasil,Kami Akan Kirim Kirim Ke WA Orang Tua'),
+              backgroundColor: AppColors.accent,
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -174,7 +180,7 @@ class _ScanScreenState extends State<ScanScreen> {
         tanggal: now,
         status: _selectedStatus,
         jam: DateFormat.Hm().format(now),
-        guruId: guru.id,
+        guruId: userId,
         fotoUrl: fotoUrl,
       );
 
@@ -242,19 +248,6 @@ class _ScanScreenState extends State<ScanScreen> {
                     color: AppColors.warning.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.warning_amber_rounded, size: 16, color: AppColors.warning),
-                      SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          'Foto bukti tidak tersimpan. Aktifkan Firebase Storage agar foto tersimpan.',
-                          style: TextStyle(fontSize: 12, color: AppColors.warning),
-                        ),
-                      ),
-                    ],
                   ),
                 ),
               ],

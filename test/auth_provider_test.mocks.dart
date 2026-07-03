@@ -5,7 +5,8 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i5;
 
-import 'package:absensi_siswa/models/absensi.dart' as _i10;
+import 'package:absensi_siswa/models/absensi.dart' as _i11;
+import 'package:absensi_siswa/models/admin.dart' as _i10;
 import 'package:absensi_siswa/models/guru.dart' as _i9;
 import 'package:absensi_siswa/models/siswa.dart' as _i8;
 import 'package:absensi_siswa/services/firestore_service.dart' as _i7;
@@ -891,6 +892,28 @@ class MockFirestoreService extends _i1.Mock implements _i7.FirestoreService {
       ) as _i5.Future<_i8.Siswa?>);
 
   @override
+  _i5.Future<_i8.Siswa?> getSiswaById(String? id) => (super.noSuchMethod(
+        Invocation.method(
+          #getSiswaById,
+          [id],
+        ),
+        returnValue: _i5.Future<_i8.Siswa?>.value(),
+        returnValueForMissingStub: _i5.Future<_i8.Siswa?>.value(),
+      ) as _i5.Future<_i8.Siswa?>);
+
+  @override
+  _i5.Future<List<_i8.Siswa>> getSiswaByHpOrtu(String? hpOrtu) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getSiswaByHpOrtu,
+          [hpOrtu],
+        ),
+        returnValue: _i5.Future<List<_i8.Siswa>>.value(<_i8.Siswa>[]),
+        returnValueForMissingStub:
+            _i5.Future<List<_i8.Siswa>>.value(<_i8.Siswa>[]),
+      ) as _i5.Future<List<_i8.Siswa>>);
+
+  @override
   _i5.Future<void> addGuru(_i9.Guru? guru) => (super.noSuchMethod(
         Invocation.method(
           #addGuru,
@@ -911,7 +934,69 @@ class MockFirestoreService extends _i1.Mock implements _i7.FirestoreService {
       ) as _i5.Future<_i9.Guru?>);
 
   @override
-  _i5.Future<void> addAbsensi(_i10.Absensi? absensi) => (super.noSuchMethod(
+  _i5.Future<List<_i9.Guru>> getAllGuru() => (super.noSuchMethod(
+        Invocation.method(
+          #getAllGuru,
+          [],
+        ),
+        returnValue: _i5.Future<List<_i9.Guru>>.value(<_i9.Guru>[]),
+        returnValueForMissingStub:
+            _i5.Future<List<_i9.Guru>>.value(<_i9.Guru>[]),
+      ) as _i5.Future<List<_i9.Guru>>);
+
+  @override
+  _i5.Future<void> deleteGuru(String? id) => (super.noSuchMethod(
+        Invocation.method(
+          #deleteGuru,
+          [id],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> addAdmin(_i10.Admin? admin) => (super.noSuchMethod(
+        Invocation.method(
+          #addAdmin,
+          [admin],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<_i10.Admin?> getAdmin(String? id) => (super.noSuchMethod(
+        Invocation.method(
+          #getAdmin,
+          [id],
+        ),
+        returnValue: _i5.Future<_i10.Admin?>.value(),
+        returnValueForMissingStub: _i5.Future<_i10.Admin?>.value(),
+      ) as _i5.Future<_i10.Admin?>);
+
+  @override
+  _i5.Future<List<_i10.Admin>> getAllAdmin() => (super.noSuchMethod(
+        Invocation.method(
+          #getAllAdmin,
+          [],
+        ),
+        returnValue: _i5.Future<List<_i10.Admin>>.value(<_i10.Admin>[]),
+        returnValueForMissingStub:
+            _i5.Future<List<_i10.Admin>>.value(<_i10.Admin>[]),
+      ) as _i5.Future<List<_i10.Admin>>);
+
+  @override
+  _i5.Future<void> deleteAdmin(String? id) => (super.noSuchMethod(
+        Invocation.method(
+          #deleteAdmin,
+          [id],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> addAbsensi(_i11.Absensi? absensi) => (super.noSuchMethod(
         Invocation.method(
           #addAbsensi,
           [absensi],
@@ -921,36 +1006,36 @@ class MockFirestoreService extends _i1.Mock implements _i7.FirestoreService {
       ) as _i5.Future<void>);
 
   @override
-  _i5.Stream<List<_i10.Absensi>> getAbsensiHariIni(DateTime? date) =>
+  _i5.Stream<List<_i11.Absensi>> getAbsensiHariIni(DateTime? date) =>
       (super.noSuchMethod(
         Invocation.method(
           #getAbsensiHariIni,
           [date],
         ),
-        returnValue: _i5.Stream<List<_i10.Absensi>>.empty(),
-        returnValueForMissingStub: _i5.Stream<List<_i10.Absensi>>.empty(),
-      ) as _i5.Stream<List<_i10.Absensi>>);
+        returnValue: _i5.Stream<List<_i11.Absensi>>.empty(),
+        returnValueForMissingStub: _i5.Stream<List<_i11.Absensi>>.empty(),
+      ) as _i5.Stream<List<_i11.Absensi>>);
 
   @override
-  _i5.Stream<List<_i10.Absensi>> getAbsensiBySiswaId(String? siswaId) =>
+  _i5.Stream<List<_i11.Absensi>> getAbsensiBySiswaId(String? siswaId) =>
       (super.noSuchMethod(
         Invocation.method(
           #getAbsensiBySiswaId,
           [siswaId],
         ),
-        returnValue: _i5.Stream<List<_i10.Absensi>>.empty(),
-        returnValueForMissingStub: _i5.Stream<List<_i10.Absensi>>.empty(),
-      ) as _i5.Stream<List<_i10.Absensi>>);
+        returnValue: _i5.Stream<List<_i11.Absensi>>.empty(),
+        returnValueForMissingStub: _i5.Stream<List<_i11.Absensi>>.empty(),
+      ) as _i5.Stream<List<_i11.Absensi>>);
 
   @override
-  _i5.Stream<List<_i10.Absensi>> getAllAbsensi() => (super.noSuchMethod(
+  _i5.Stream<List<_i11.Absensi>> getAllAbsensi() => (super.noSuchMethod(
         Invocation.method(
           #getAllAbsensi,
           [],
         ),
-        returnValue: _i5.Stream<List<_i10.Absensi>>.empty(),
-        returnValueForMissingStub: _i5.Stream<List<_i10.Absensi>>.empty(),
-      ) as _i5.Stream<List<_i10.Absensi>>);
+        returnValue: _i5.Stream<List<_i11.Absensi>>.empty(),
+        returnValueForMissingStub: _i5.Stream<List<_i11.Absensi>>.empty(),
+      ) as _i5.Stream<List<_i11.Absensi>>);
 
   @override
   _i5.Future<void> deleteAbsensi(String? absensiId) => (super.noSuchMethod(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import '../../providers/auth_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/skeleton_loader.dart';
@@ -13,7 +14,6 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  // Controllers untuk mengambil input dari text field
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passController = TextEditingController();
@@ -31,27 +31,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
-  // Validasi email sederhana
   bool _isValidEmail(String email) {
     return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
   }
 
-  // Fungsi untuk menangani proses registrasi
   Future<void> _handleRegister() async {
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passController.text;
     final confirmPassword = _confirmPassController.text;
 
-    // Validasi field kosong
-    if (name.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+    if (name.isEmpty ||
+        email.isEmpty ||
+        password.isEmpty ||
+        confirmPassword.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Mohon lengkapi semua data")),
       );
       return;
     }
 
-    // Validasi format email
     if (!_isValidEmail(email)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Format email tidak valid")),
@@ -59,7 +58,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    // Validasi minimal password
     if (password.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Password minimal 6 karakter")),
@@ -67,7 +65,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    // Validasi konfirmasi password
     if (password != confirmPassword) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Konfirmasi password tidak cocok")),
@@ -78,28 +75,69 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Panggil fungsi register dari AuthProvider
       final authProvider = context.read<AuthProvider>();
-      await authProvider.register(email, password, name);
+      await authProvider.register(email, password, name, role: 'admin');
 
-      // Setelah registrasi, user di-sign-out otomatis oleh AuthProvider.
-      // User harus login manual ke halaman Login.
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: AppColors.success,
-          content: Text("Akun berhasil dibuat! Silakan login."),
+          content: Text("Akun Admin berhasil dibuat! Silakan login."),
         ),
       );
-      // Kembali ke halaman Login agar user bisa login manual.
       Navigator.of(context).popUntil((route) => route.isFirst);
-    } catch (e) {
-      // Tangani error (misal: email sudah terdaftar)
+    } on FirebaseAuthException catch (e) {
       if (!mounted) return;
+      String pesan;
+      switch (e.code) {
+        case 'email-already-in-use':
+          pesan = 'Email sudah terdaftar. Gunakan email lain atau login.';
+          break;
+        case 'weak-password':
+          pesan = 'Password terlalu lemah. Minimal 6 karakter.';
+          break;
+        case 'invalid-email':
+          pesan = 'Format email tidak valid.';
+          break;
+        default:
+          pesan = e.message ?? 'Gagal membuat akun. Coba lagi.';
+      }
+      debugPrint('RegisterScreen: FirebaseAuthException [${e.code}]: ${e.message}');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: Colors.red,
-          content: Text("Registrasi gagal: ${e.toString()}"),
+          content: Text(pesan),
+        ),
+      );
+    } on FirebaseException catch (e) {
+      if (!mounted) return;
+      debugPrint('RegisterScreen: FirebaseException [${e.code}]: ${e.message}');
+      String pesan;
+      if (e.code == 'permission-denied') {
+        pesan = 'Firestore rules menolak akses. Deploy ulang firestore.rules ke Firebase.';
+      } else if (e.code == 'unavailable') {
+        pesan = 'Firestore tidak dapat dijangkau. Periksa koneksi internet.';
+      } else if (e.code == 'not-found') {
+        pesan = 'Database Firestore belum dibuat. Buat di Firebase Console > Firestore Database.';
+      } else {
+        pesan = 'Error Firebase: ${e.message}. Coba deploy ulang firestore.rules.';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.red,
+          content: Text(pesan),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      debugPrint('RegisterScreen: Error: $e');
+      final pesan = e.toString().contains('Akun admin')
+          ? e.toString()
+          : 'Registrasi gagal: ${e.toString()}';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: Colors.red,
+          content: Text(pesan),
         ),
       );
     } finally {
@@ -133,7 +171,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  /// Form registrasi lengkap
   Widget _buildForm() {
     return SingleChildScrollView(
       key: const ValueKey('form'),
@@ -143,22 +180,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
         children: [
           const SizedBox(height: 40),
 
-          // Header / Judul
+          // Header — khusus Admin
           Center(
             child: Column(
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
+                    color: Colors.deepOrange.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.person_add_alt_1,
-                      size: 40, color: AppColors.primary),
+                  child: const Icon(Icons.admin_panel_settings,
+                      size: 40, color: Colors.deepOrange),
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  "Buat Akun Guru",
+                  "Daftar Admin Baru",
                   style: GoogleFonts.inter(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -167,7 +204,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "Daftar untuk mulai mengelola absensi",
+                  "Buat akun administrator untuk mengelola aplikasi",
                   style: GoogleFonts.inter(
                     fontSize: 14,
                     color: AppColors.muted,
@@ -177,7 +214,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ),
 
-          const SizedBox(height: 40),
+          const SizedBox(height: 24),
+
+          const SizedBox(height: 24),
 
           // Form Input
           Column(
@@ -190,7 +229,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               TextField(
                 controller: _nameController,
                 decoration: const InputDecoration(
-                  hintText: "Contoh: Bpk. Budi Santoso",
+                  hintText: "Masukkan Nama",
                   prefixIcon: Icon(Icons.person_outline),
                 ),
               ),
@@ -203,7 +242,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
-                  hintText: "guru@sekolah.sch.id",
+                  hintText: "Masukkan email",
                   prefixIcon: Icon(Icons.email_outlined),
                 ),
               ),
@@ -253,7 +292,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: ElevatedButton(
               onPressed: _isLoading ? null : _handleRegister,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: Colors.deepOrange,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
@@ -263,7 +302,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               child: _isLoading
                   ? const CircularProgressIndicator(color: Colors.white)
                   : Text(
-                      "Daftar Sekarang",
+                      "Daftar Admin",
                       style: GoogleFonts.inter(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -295,6 +334,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class RegisterSkeleton extends StatelessWidget {
+  const RegisterSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.all(24),
+      child: Center(
+        child: CircularProgressIndicator(),
       ),
     );
   }
