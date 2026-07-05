@@ -25,6 +25,10 @@ class _ManageAdminScreenState extends State<ManageAdminScreen> {
     _searchController.addListener(_filterAdmins);
   }
 
+  Stream<int> _adminCountStream() {
+    return _fs.getAdminCountStream();
+  }
+
   @override
   void dispose() {
     _searchController.removeListener(_filterAdmins);
@@ -35,6 +39,9 @@ class _ManageAdminScreenState extends State<ManageAdminScreen> {
   Future<void> _loadAdmins() async {
     setState(() => _isLoading = true);
     try {
+      // Sinkronkan counter dengan jumlah admin aktual
+      await _fs.syncAdminCounter();
+
       final admins = await _fs.getAllAdmin();
       if (!mounted) return;
       setState(() {
@@ -147,9 +154,58 @@ class _ManageAdminScreenState extends State<ManageAdminScreen> {
       ),
       body: Column(
         children: [
+          // ── Slot Admin Indicator ──
+          StreamBuilder<int>(
+            stream: _adminCountStream(),
+            builder: (context, snapshot) {
+              final count = snapshot.data ?? 0;
+              final maxSlots = 3;
+              final sisa = maxSlots - count;
+              final isFull = count >= maxSlots;
+
+              return Container(
+                margin: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: isFull
+                      ? Colors.orange.withValues(alpha: 0.1)
+                      : AppColors.success.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isFull
+                        ? Colors.orange.withValues(alpha: 0.3)
+                        : AppColors.success.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      isFull ? Icons.info_outline : Icons.check_circle_outline,
+                      size: 20,
+                      color: isFull ? Colors.orange : AppColors.success,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        isFull
+                            ? 'Slot admin penuh ($count/$maxSlots). Hapus salah satu admin untuk membuka slot pendaftaran.'
+                            : 'Slot admin: $count/$maxSlots terpakai ($sisa slot tersedia)',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: isFull ? Colors.orange.shade800 : AppColors.success,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+
           // ── Search Bar ──
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(

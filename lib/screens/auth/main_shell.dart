@@ -27,6 +27,7 @@ class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
   Timer? _roleTimeout;
   bool _isRedirecting = false;
+  bool _counterSynced = false;
 
   @override
   void dispose() {
@@ -58,6 +59,15 @@ class _MainShellState extends State<MainShell> {
     final isAdmin = auth.isAdmin;
 
     if (isAdmin) {
+      // Sinkronkan counter admin sekali saat admin pertama kali login
+      if (!_counterSynced) {
+        _counterSynced = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          FirestoreService().syncAdminCounter().catchError((e) {
+            debugPrint('MainShell: Gagal sync admin counter: $e');
+          });
+        });
+      }
       return _buildAdminShell();
     } else {
       return _buildGuruShell();

@@ -996,6 +996,26 @@ class MockFirestoreService extends _i1.Mock implements _i7.FirestoreService {
       ) as _i5.Future<void>);
 
   @override
+  _i5.Stream<int> getAdminCountStream() => (super.noSuchMethod(
+        Invocation.method(
+          #getAdminCountStream,
+          [],
+        ),
+        returnValue: _i5.Stream<int>.empty(),
+        returnValueForMissingStub: _i5.Stream<int>.empty(),
+      ) as _i5.Stream<int>);
+
+  @override
+  _i5.Future<int> getAdminCount() => (super.noSuchMethod(
+        Invocation.method(
+          #getAdminCount,
+          [],
+        ),
+        returnValue: _i5.Future<int>.value(0),
+        returnValueForMissingStub: _i5.Future<int>.value(0),
+      ) as _i5.Future<int>);
+
+  @override
   _i5.Future<void> addAbsensi(_i11.Absensi? absensi) => (super.noSuchMethod(
         Invocation.method(
           #addAbsensi,
@@ -1053,6 +1073,122 @@ class MockFirestoreService extends _i1.Mock implements _i7.FirestoreService {
         Invocation.method(
           #deleteAbsensiBySiswaId,
           [siswaId],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<List<_i11.Absensi>> getAbsensiByKelasAndDate(
+    String? kelas,
+    DateTime? date,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #getAbsensiByKelasAndDate,
+          [
+            kelas,
+            date,
+          ],
+        ),
+        returnValue: _i5.Future<List<_i11.Absensi>>.value(<_i11.Absensi>[]),
+        returnValueForMissingStub:
+            _i5.Future<List<_i11.Absensi>>.value(<_i11.Absensi>[]),
+      ) as _i5.Future<List<_i11.Absensi>>);
+
+  @override
+  _i5.Future<void> updateAbsensi(
+    String? id,
+    Map<String, dynamic>? data,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #updateAbsensi,
+          [
+            id,
+            data,
+          ],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> batchSaveAbsensi(List<_i11.Absensi>? records) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #batchSaveAbsensi,
+          [records],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<bool> isKelasLocked(
+    String? kelas,
+    DateTime? date,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #isKelasLocked,
+          [
+            kelas,
+            date,
+          ],
+        ),
+        returnValue: _i5.Future<bool>.value(false),
+        returnValueForMissingStub: _i5.Future<bool>.value(false),
+      ) as _i5.Future<bool>);
+
+  @override
+  _i5.Future<void> lockKelas(
+    String? kelas,
+    DateTime? date,
+    String? lockedBy,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #lockKelas,
+          [
+            kelas,
+            date,
+            lockedBy,
+          ],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<bool> isNotifikasiKelasSent(
+    String? kelas,
+    DateTime? date,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #isNotifikasiKelasSent,
+          [
+            kelas,
+            date,
+          ],
+        ),
+        returnValue: _i5.Future<bool>.value(false),
+        returnValueForMissingStub: _i5.Future<bool>.value(false),
+      ) as _i5.Future<bool>);
+
+  @override
+  _i5.Future<void> markNotifikasiKelasSent(
+    String? kelas,
+    DateTime? date,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #markNotifikasiKelasSent,
+          [
+            kelas,
+            date,
+          ],
         ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),

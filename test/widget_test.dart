@@ -6,8 +6,13 @@ import 'package:mockito/mockito.dart';
 import 'package:absensi_siswa/main.dart';
 import 'package:absensi_siswa/providers/auth_provider.dart';
 import 'auth_provider_test.mocks.dart';
+import 'firebase_test_helper.dart';
 
 void main() {
+  setUpAll(() async {
+    await setupFirebaseMocks();
+  });
+
   testWidgets('App loads successfully', (WidgetTester tester) async {
     final mockAuth = MockFirebaseAuth();
     final mockFirestore = MockFirestoreService();

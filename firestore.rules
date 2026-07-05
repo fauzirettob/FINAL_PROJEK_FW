@@ -29,9 +29,17 @@ service cloud.firestore {
       return request.resource.data[field] is timestamp;
     }
 
+    // ─── COUNTERS ─────────────────────────────────────────
+    // Counter dokumen digunakan untuk membatasi jumlah admin maksimal 3
+    match /_counters/{counterId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // ─── ADMIN ────────────────────────────────────────────
     // Dokumen admin menggunakan UID user sebagai document ID.
     // Admin bisa CRUD; user biasa hanya bisa baca/menulis data dirinya sendiri.
+    // Jumlah admin dibatasi maksimal 3 via counter doc (_counters/admin_count).
     match /admin/{userId} {
       allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
       allow delete: if isAdmin();
@@ -41,7 +49,13 @@ service cloud.firestore {
         && isString('nama')
         && isString('email')
         && isString('role')
-        && isTimestamp('createdAt');
+        && isTimestamp('createdAt')
+        && (
+          // Izinkan jika counter dokumen belum ada (admin pertama)
+          !exists(/databases/$(database)/documents/_counters/admin_count)
+          // Atau jika jumlah admin saat ini < 3
+          || get(/databases/$(database)/documents/_counters/admin_count).data.count < 3
+        );
 
       allow update: if isOwner(userId)
         && isString('nama')

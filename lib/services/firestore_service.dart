@@ -94,7 +94,14 @@ class FirestoreService {
 
   // --- ADMIN ---
   Future<void> addAdmin(Admin admin) async {
+    // 1. Simpan dokumen admin terlebih dahulu (create rule: isOwner(userId))
     await _db.collection('admin').doc(admin.id).set(admin.toMap());
+
+    // 2. Update counter setelah admin doc sudah ada (write rule: isAdmin() jadi terpenuhi)
+    await _ensureAdminCounterExists();
+    await _db.collection('_counters').doc('admin_count').update({
+      'count': FieldValue.increment(1),
+    });
   }
 
   Future<Admin?> getAdmin(String id) async {
@@ -111,7 +118,54 @@ class FirestoreService {
   }
 
   Future<void> deleteAdmin(String id) async {
-    await _db.collection('admin').doc(id).delete();
+    final batch = _db.batch();
+    batch.delete(_db.collection('admin').doc(id));
+    batch.update(_db.collection('_counters').doc('admin_count'), {
+      'count': FieldValue.increment(-1),
+    });
+    await batch.commit();
+  }
+
+  /// Inisialisasi counter dokumen admin_count jika belum ada.
+  /// Tidak membaca collection 'admin' (bisa kena permission-denied saat registrasi).
+  /// Cukup set count=0; akan dikoreksi oleh addAdmin/deleteAdmin.
+  Future<void> _ensureAdminCounterExists() async {
+    final doc = await _db.collection('_counters').doc('admin_count').get();
+    if (!doc.exists) {
+      await _db.collection('_counters').doc('admin_count').set({
+        'count': 0,
+      });
+    }
+  }
+
+  /// Sinkronkan counter admin dengan jumlah aktual dari collection admin.
+  /// Panggil dari halaman kelola admin (admin sudah terautentikasi).
+  Future<void> syncAdminCounter() async {
+    final snapshot = await _db.collection('admin').get();
+    await _db.collection('_counters').doc('admin_count').set({
+      'count': snapshot.docs.length,
+    });
+  }
+
+  /// Stream jumlah admin secara real-time via counter doc
+  Stream<int> getAdminCountStream() {
+    return _db
+        .collection('_counters')
+        .doc('admin_count')
+        .snapshots()
+        .map((doc) => (doc.data()?['count'] as int?) ?? 0);
+  }
+
+  /// Ambil jumlah admin saat ini dari counter doc
+  Future<int> getAdminCount() async {
+    try {
+      final doc = await _db.collection('_counters').doc('admin_count').get();
+      return (doc.data()?['count'] as int?) ?? 0;
+    } catch (e) {
+      // Fallback: hitung langsung dari collection jika counter belum ada
+      final snapshot = await _db.collection('admin').get();
+      return snapshot.docs.length;
+    }
   }
 
   // --- ABSENSI ---

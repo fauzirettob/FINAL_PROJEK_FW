@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import '../../providers/auth_provider.dart';
+import '../../services/firestore_service.dart';
 import '../../theme/app_theme.dart';
 import 'register_screen.dart';
 import 'main_shell.dart';
@@ -247,32 +248,41 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 16),
 
-              // ── Register Link ──
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    "Belum punya akun?",
-                    style: TextStyle(color: AppColors.muted),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const RegisterScreen(),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      "Daftar Admin",
-                      style: TextStyle(
-                        color: Colors.deepOrange,
-                        fontWeight: FontWeight.bold,
+              // ── Register Link (hanya tampil jika admin < 3) ──
+              StreamBuilder<int>(
+                stream: FirestoreService().getAdminCountStream(),
+                builder: (context, snapshot) {
+                  final adminCount = snapshot.data ?? 0;
+                  if (adminCount >= 3) {
+                    return const SizedBox.shrink();
+                  }
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        "Belum punya akun?",
+                        style: TextStyle(color: AppColors.muted),
                       ),
-                    ),
-                  ),
-                ],
+                      TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const RegisterScreen(),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          "Daftar Admin",
+                          style: TextStyle(
+                            color: Colors.deepOrange,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ],
           ),

@@ -9,18 +9,16 @@ import 'package:absensi_siswa/screens/auth/login_screen.dart';
 import 'package:absensi_siswa/providers/auth_provider.dart';
 import 'package:absensi_siswa/models/guru.dart';
 import 'auth_provider_test.mocks.dart';
+import 'firebase_test_helper.dart';
 
 void main() {
   late MockFirebaseAuth mockAuth;
   late MockFirestoreService mockFirestore;
   late MockUser mockUser;
 
-  // Tidak perlu setUpAll — test yang tidak membutuhkan Firebase 
-  // (LoginScreen, mounted check, rendering) sudah cukup untuk
-  // memvalidasi logika navigasi splash screen.
-  //
-  // Test navigasi ke MainShell membutuhkan mocking Firebase/Firestore
-  // yang lebih kompleks dan sebaiknya dilakukan di integration test.
+  setUpAll(() async {
+    await setupFirebaseMocks();
+  });
 
   setUp(() {
     mockAuth = MockFirebaseAuth();

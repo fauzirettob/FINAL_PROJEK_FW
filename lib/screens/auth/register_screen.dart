@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import '../../providers/auth_provider.dart';
+import '../../services/firestore_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/skeleton_loader.dart';
 
@@ -72,10 +73,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
+    // Capture AuthProvider sebelum async pertama
+    final authProvider = context.read<AuthProvider>();
+
+    // Cek jumlah admin yang sudah ada (maksimal 3)
+    try {
+      final adminCount = await FirestoreService().getAdminCount();
+      if (adminCount >= 3) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Colors.red,
+            content: Text("Pendaftaran admin dibatasi maksimal 3 akun. Hubungi admin lain untuk info lebih lanjut."),
+          ),
+        );
+        return;
+      }
+    } catch (e) {
+      debugPrint('RegisterScreen: Gagal cek jumlah admin: $e');
+    }
+
     setState(() => _isLoading = true);
 
     try {
-      final authProvider = context.read<AuthProvider>();
       await authProvider.register(email, password, name, role: 'admin');
 
       if (!mounted) return;
