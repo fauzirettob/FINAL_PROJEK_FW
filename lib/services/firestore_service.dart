@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import '../models/siswa.dart';
 import '../models/absensi.dart';
 import '../models/guru.dart';
@@ -180,5 +181,80 @@ class FirestoreService {
     await batch.commit();
   }
 
+  /// --- NEW: ABSENSI PER KELAS ---
 
+  /// Ambil absensi untuk kelas dan tanggal tertentu
+  Future<List<Absensi>> getAbsensiByKelasAndDate(String kelas, DateTime date) async {
+    final start = DateTime(date.year, date.month, date.day);
+    final end = start.add(const Duration(days: 1));
+
+    final snapshot = await _db
+        .collection('absensi')
+        .where('kelas', isEqualTo: kelas)
+        .where('tanggal', isGreaterThanOrEqualTo: start)
+        .where('tanggal', isLessThan: end)
+        .get();
+
+    return snapshot.docs
+        .map((doc) => Absensi.fromMap(doc.data(), doc.id))
+        .toList();
+  }
+
+  /// Update field tertentu pada dokumen absensi
+  Future<void> updateAbsensi(String id, Map<String, dynamic> data) async {
+    await _db.collection('absensi').doc(id).update(data);
+  }
+
+  /// Simpan banyak absensi sekaligus dalam batch
+  Future<void> batchSaveAbsensi(List<Absensi> records) async {
+    final batch = _db.batch();
+    for (final record in records) {
+      batch.set(
+        _db.collection('absensi').doc(record.id),
+        record.toMap(),
+      );
+    }
+    await batch.commit();
+  }
+
+  /// --- LOCK KELAS ---
+
+  /// Cek apakah kelas sudah dikunci untuk tanggal tertentu
+  Future<bool> isKelasLocked(String kelas, DateTime date) async {
+    final docId = '${kelas}_${DateFormat('yyyy-MM-dd').format(date)}';
+    final doc = await _db.collection('kelas_locks').doc(docId).get();
+    return doc.exists && doc.data()?['isLocked'] == true;
+  }
+
+  /// Kunci kelas untuk tanggal tertentu (cegah perubahan absensi)
+  Future<void> lockKelas(String kelas, DateTime date, String lockedBy) async {
+    final docId = '${kelas}_${DateFormat('yyyy-MM-dd').format(date)}';
+    await _db.collection('kelas_locks').doc(docId).set({
+      'kelas': kelas,
+      'tanggal': Timestamp.fromDate(date),
+      'isLocked': true,
+      'lockedAt': Timestamp.now(),
+      'lockedBy': lockedBy,
+    });
+  }
+
+  /// --- NOTIFIKASI KELAS ---
+
+  /// Cek apakah notifikasi sudah pernah dikirim untuk kelas+ tanggal
+  Future<bool> isNotifikasiKelasSent(String kelas, DateTime date) async {
+    final docId = '${kelas}_${DateFormat('yyyy-MM-dd').format(date)}';
+    final doc = await _db.collection('kelas_notifikasi').doc(docId).get();
+    return doc.exists && doc.data()?['dikirim'] == true;
+  }
+
+  /// Tandai notifikasi sudah dikirim untuk kelas+ tanggal
+  Future<void> markNotifikasiKelasSent(String kelas, DateTime date) async {
+    final docId = '${kelas}_${DateFormat('yyyy-MM-dd').format(date)}';
+    await _db.collection('kelas_notifikasi').doc(docId).set({
+      'kelas': kelas,
+      'tanggal': Timestamp.fromDate(date),
+      'dikirim': true,
+      'dikirimAt': Timestamp.now(),
+    });
+  }
 }

@@ -459,7 +459,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 },
                               ),
                             )
-                          : const Icon(Icons.camera_alt, color: AppColors.muted, size: 28),
+                          : const Icon(Icons.person_rounded, color: AppColors.muted, size: 28),
                     ),
                   ),
                   const SizedBox(width: 12),

@@ -5,7 +5,7 @@ import '../../services/firestore_service.dart';
 import '../../models/absensi.dart';
 import '../../models/siswa.dart';
 import '../../providers/auth_provider.dart';
-import 'history_screen.dart';
+import 'absen_kelas_detail_screen.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -20,7 +20,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late final FirestoreService _fs = widget.firestoreService ?? FirestoreService();
-  String? _selectedKelas;
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -185,249 +184,46 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
-            // ── Daftar Hadir ──
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "Daftar Hadir Hari Ini",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.foreground),
-              ),
-            ),
-            const SizedBox(height: 12),
-            // Gabungkan data siswa + absensi hari ini
+            // ── Rekap Per Kelas ──
             StreamBuilder<List<Siswa>>(
               stream: _fs.getSiswaStream(),
-              builder: (context, siswaSnapshot) {
-                if (siswaSnapshot.hasError) {
-                  return _buildErrorState('Gagal memuat data siswa');
-                }
-                if (!siswaSnapshot.hasData) {
-                  return _buildLoadingState();
-                }
-
-                final semuaSiswa = siswaSnapshot.data!;
-
+              builder: (context, siswaSnap) {
+                final semuaSiswa = siswaSnap.data ?? [];
                 return StreamBuilder<List<Absensi>>(
                   stream: _fs.getAbsensiHariIni(DateTime.now()),
-                  builder: (context, absensiSnapshot) {
-                    final absensiHariIni = absensiSnapshot.data ?? [];
+                  builder: (context, absenSnap) {
+                    final absensiHariIni = absenSnap.data ?? [];
 
-                    // Map siswaId -> Absensi untuk lookup cepat
-                    final absensiMap = <String, Absensi>{};
+                    // Kelompokkan siswa per kelas
+                    final kelasMap = <String, List<Siswa>>{};
+                    for (final s in semuaSiswa) {
+                      kelasMap.putIfAbsent(s.kelas, () => []);
+                      kelasMap[s.kelas]!.add(s);
+                    }
+
+                    final kelasList = kelasMap.keys.toList()..sort();
+                    final totalAbsensiHariIni = absensiHariIni.length;
+
+                    // Map siswaId -> status untuk lookup cepat
+                    final statusMap = <String, String>{};
                     for (final a in absensiHariIni) {
-                      absensiMap[a.siswaId] = a;
+                      statusMap[a.siswaId] = a.status;
                     }
 
-                    if (semuaSiswa.isEmpty) {
-                      return _buildEmptyState(
-                        icon: Icons.people_outline_rounded,
-                        title: 'Belum ada siswa terdaftar',
-                        subtitle: 'Tambahkan siswa melalui menu Data Siswa',
-                      );
-                    }
-
-                    // Kumpulkan daftar kelas unik
-                    final daftarKelas = semuaSiswa
-                        .map((s) => s.kelas)
-                        .toSet()
-                        .toList()
-                      ..sort();
-
-                    // Filter berdasarkan kelas yang dipilih
-                    var siswaTerfilter = semuaSiswa;
-                    if (_selectedKelas != null) {
-                      siswaTerfilter = semuaSiswa
-                          .where((s) => s.kelas == _selectedKelas)
-                          .toList();
-                    }
-
-                    // Urutkan: Hadir, Izin, Sakit, Alpa, Belum Absen
-                    final statusOrder = {'hadir': 0, 'izin': 1, 'sakit': 2, 'alpa': 3};
-                    final sortedSiswa = List<Siswa>.from(siswaTerfilter);
-                    sortedSiswa.sort((a, b) {
-                      final aAbsen = absensiMap[a.id];
-                      final bAbsen = absensiMap[b.id];
-                      final aOrder = aAbsen != null ? (statusOrder[aAbsen.status] ?? 4) : 4;
-                      final bOrder = bAbsen != null ? (statusOrder[bAbsen.status] ?? 4) : 4;
-                      if (aOrder != bOrder) return aOrder.compareTo(bOrder);
-                      return a.nama.compareTo(b.nama);
-                    });
-
-                    // Hitung ulang berdasarkan data yang sudah difilter
-                    final absensiTerfilter = <Absensi>[];
-                    for (final siswa in siswaTerfilter) {
-                      final absen = absensiMap[siswa.id];
-                      if (absen != null) {
-                        absensiTerfilter.add(absen);
-                      }
-                    }
-                    final totalSiswa = siswaTerfilter.length;
-                    final totalTerabsen = absensiTerfilter.length;
-                    final belumAbsen = totalSiswa - totalTerabsen;
-
-                    return Column(
-                      children: [
-                        // ── Filter Kelas ──
-                        SizedBox(
-                          height: 40,
-                          child: ListView(
-                            scrollDirection: Axis.horizontal,
-                            children: [
-                              _FilterChip(
-                                label: 'Semua Kelas',
-                                isSelected: _selectedKelas == null,
-                                onTap: () => setState(() => _selectedKelas = null),
-                              ),
-                              const SizedBox(width: 8),
-                              ...daftarKelas.map((kelas) => Padding(
-                                    padding: const EdgeInsets.only(right: 8),
-                                    child: _FilterChip(
-                                      label: kelas,
-                                      isSelected: _selectedKelas == kelas,
-                                      onTap: () =>
-                                          setState(() => _selectedKelas = kelas),
-                                    ),
-                                  )),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
-                        // ── Ringkasan Status ──
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppColors.card,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: AppColors.border),
-                          ),
-                          child: Column(
-                            children: [
-                              Row(
-                                children: [
-                                  _StatusPill(
-                                    label: 'Hadir',
-                                    value: absensiTerfilter.where((a) => a.status == 'hadir').length,
-                                    color: AppColors.success,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  _StatusPill(
-                                    label: 'Izin',
-                                    value: absensiTerfilter.where((a) => a.status == 'izin').length,
-                                    color: AppColors.accent,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  _StatusPill(
-                                    label: 'Sakit',
-                                    value: absensiTerfilter.where((a) => a.status == 'sakit').length,
-                                    color: AppColors.warning,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  _StatusPill(
-                                    label: 'Alpa',
-                                    value: absensiTerfilter.where((a) => a.status == 'alpa').length,
-                                    color: Colors.red,
-                                  ),
-                                ],
-                              ),
-                              if (belumAbsen > 0) ...[
-                                const SizedBox(height: 8),
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.warning.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.info_outline,
-                                          size: 16, color: AppColors.warning),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        '$belumAbsen siswa belum melakukan absensi',
-                                        style: const TextStyle(
-                                          color: AppColors.warning,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // ── Daftar Lengkap ──
-                        if (sortedSiswa.isEmpty)
-                          _buildEmptyState(
-                            icon: Icons.inbox_rounded,
-                            title: 'Tidak ada siswa di kelas ini',
-                            subtitle: _selectedKelas != null
-                                ? 'Pilih kelas lain atau reset filter'
-                                : 'Tambahkan siswa untuk memulai',
-                          )
-                        else ...[
-                          // Info jumlah ditampilkan
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Row(
-                              children: [
-                                Text(
-                                  'Menampilkan ${sortedSiswa.length} siswa',
-                                  style: TextStyle(
-                                    color: AppColors.muted.withValues(alpha: 0.7),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          ...sortedSiswa.map((siswa) {
-                            final absen = absensiMap[siswa.id];
-                            return _buildDaftarHadirCard(siswa, absen);
-                          }),
-                        ],
-
-                        const SizedBox(height: 20),
-
-                        // ── Tombol Riwayat ──
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: OutlinedButton.icon(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const HistoryScreen(),
-                                ),
-                              );
-                            },
-                            icon: const Icon(Icons.history_rounded),
-                            label: const Text("Lihat Riwayat Lengkap"),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.primary,
-                              side: BorderSide(color: AppColors.primary.withValues(alpha: 0.4)),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                    return _buildRekapPerKelas(
+                      kelasList: kelasList,
+                      kelasMap: kelasMap,
+                      statusMap: statusMap,
+                      totalAbsensiHariIni: totalAbsensiHariIni,
                     );
                   },
                 );
               },
             ),
+
+
           ],
         ),
       ),
@@ -438,207 +234,465 @@ class _HomeScreenState extends State<HomeScreen> {
     widget.onNavigateToTab?.call(tabIndex);
   }
 
-  Widget _buildLoadingState() {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(40),
-        child: CircularProgressIndicator(),
-      ),
-    );
-  }
-
-  Widget _buildErrorState(String message) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24),
-      child: Center(
-        child: Text(message, style: const TextStyle(color: AppColors.muted)),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 32),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 48, color: AppColors.muted.withValues(alpha: 0.5)),
-          const SizedBox(height: 12),
-          Text(title, style: const TextStyle(color: AppColors.muted)),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: TextStyle(color: AppColors.muted.withValues(alpha: 0.7), fontSize: 12),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDaftarHadirCard(Siswa siswa, Absensi? absen) {
-    final bool sudahAbsen = absen != null;
-
-    String statusLabel;
-    Color statusColor;
-    if (sudahAbsen) {
-      final a = absen;
-      final labels = {
-        'hadir': 'Hadir',
-        'izin': 'Izin',
-        'sakit': 'Sakit',
-        'alpa': 'Alpa',
-      };
-      final colors = {
-        'hadir': AppColors.success,
-        'izin': AppColors.accent,
-        'sakit': AppColors.warning,
-        'alpa': Colors.red,
-      };
-      statusLabel = labels[a.status] ?? a.status;
-      statusColor = colors[a.status] ?? AppColors.muted;
-    } else {
-      statusLabel = 'Belum Absen';
-      statusColor = AppColors.muted;
+  // ─── Helper: Ambil inisial dari nama kelas ────────────────────
+  String _getInitials(String kelas) {
+    final parts = kelas.trim().split(RegExp(r'\s+'));
+    if (parts.length >= 2) {
+      return parts.take(2).map((p) => p[0].toUpperCase()).join();
     }
+    // Ambil maks 2 huruf pertama jika 1 kata
+    final word = parts.isNotEmpty ? parts[0] : '';
+    if (word.length <= 2) return word.toUpperCase();
+    return word.substring(0, 2).toUpperCase();
+  }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: sudahAbsen
-              ? AppColors.border
-              : AppColors.warning.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Row(
-        children: [
-          // Avatar lingkaran dengan inisial
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: sudahAbsen
-                ? AppColors.primary.withValues(alpha: 0.1)
-                : AppColors.border.withValues(alpha: 0.5),
-            child: Text(
-              siswa.nama.isNotEmpty ? siswa.nama[0].toUpperCase() : '?',
-              style: TextStyle(
-                color: sudahAbsen ? AppColors.primary : AppColors.muted,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
+  // ─── Helper: Warna unik per kelas ─────────────────────────────
+  final List<Color> _kelasPalette = const [
+    Color(0xFF6366F1), // Indigo
+    Color(0xFF8B5CF6), // Violet
+    Color(0xFFEC4899), // Pink
+    Color(0xFFF43F5E), // Rose
+    Color(0xFFF97316), // Orange
+    Color(0xFF14B8A6), // Teal
+    Color(0xFF06B6D4), // Cyan
+    Color(0xFF3B82F6), // Blue
+  ];
+
+  Color _getKelasColor(String kelas) {
+    final hash = kelas.hashCode.abs();
+    return _kelasPalette[hash % _kelasPalette.length];
+  }
+
+  // ─── Rekap Per Kelas ──────────────────────────────────────────
+  Widget _buildRekapPerKelas({
+    required List<String> kelasList,
+    required Map<String, List<Siswa>> kelasMap,
+    required Map<String, String> statusMap,
+    required int totalAbsensiHariIni,
+  }) {
+    if (kelasList.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Label
+        Row(
+          children: [
+            const Text(
+              'Rekap Per Kelas',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.foreground),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$totalAbsensiHariIni absensi hari ini',
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          // Detail siswa
-          Expanded(
+          ],
+        ),
+        const SizedBox(height: 8),
+        // Info jumlah kelas
+        Row(
+          children: [
+            Icon(Icons.class_, size: 14, color: AppColors.muted.withValues(alpha: 0.7)),
+            const SizedBox(width: 4),
+            Text(
+              '${kelasList.length} kelas',
+              style: TextStyle(color: AppColors.muted.withValues(alpha: 0.7), fontSize: 12),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        // Cards per kelas
+        ...kelasList.map((kelas) {
+          final siswaKelas = kelasMap[kelas] ?? [];
+          final totalSiswa = siswaKelas.length;
+          final hadir = siswaKelas.where((s) => statusMap[s.id] == 'hadir').length;
+          final belumAbsen = siswaKelas.where((s) => !statusMap.containsKey(s.id)).length;
+          final persenHadir = totalSiswa > 0 ? hadir / totalSiswa : 0.0;
+
+          Color progressColor;
+          if (persenHadir >= 0.75) {
+            progressColor = AppColors.success;
+          } else if (persenHadir >= 0.5) {
+            progressColor = AppColors.warning;
+          } else {
+            progressColor = Colors.red;
+          }
+
+          return GestureDetector(
+            onTap: () => _showDetailSiswaPerKelas(
+              kelas: kelas,
+              siswaKelas: siswaKelas,
+              statusMap: statusMap,
+            ),
+            child: Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border),
+            ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  siswa.nama,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: sudahAbsen
-                        ? AppColors.foreground
-                        : AppColors.foreground.withValues(alpha: 0.7),
-                  ),
-                ),
-                const SizedBox(height: 2),
+                // Header kelas
                 Row(
                   children: [
-                    Text(
-                      siswa.kelas,
-                      style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                    // Badge kelas dengan inisial dan warna
+                    Container(
+                      width: 40, height: 40,
+                      decoration: BoxDecoration(
+                        color: _getKelasColor(kelas).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Center(
+                        child: Text(
+                          _getInitials(kelas),
+                          style: TextStyle(
+                            color: _getKelasColor(kelas),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
                     ),
-
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Kelas $kelas',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: AppColors.foreground,
+                        ),
+                      ),
+                    ),
+                    // Tombol absen cepat dengan warna solid + shadow
+                    Container(
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: _getKelasColor(kelas),
+                        borderRadius: BorderRadius.circular(10),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _getKelasColor(kelas).withValues(alpha: 0.35),
+                            blurRadius: 6,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => AbsenKelasDetailScreen(
+                                  kelas: kelas,
+                                  tanggal: DateTime.now(),
+                                ),
+                              ),
+                            );
+                          },
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 12),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.edit_note_rounded, size: 15, color: Colors.white),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Absen',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
+                const SizedBox(height: 10),
+                // Progress bar
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(
+                    value: persenHadir,
+                    backgroundColor: AppColors.border.withValues(alpha: 0.5),
+                    color: progressColor,
+                    minHeight: 8,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Stat row
+                Row(
+                  children: [
+                    _KelasStatItem(
+                      icon: Icons.check_circle_rounded,
+                      label: 'Hadir',
+                      value: hadir.toString(),
+                      color: AppColors.success,
+                    ),
+                    const SizedBox(width: 8),
+                    _KelasStatItem(
+                      icon: Icons.schedule_rounded,
+                      label: 'Belum Absen',
+                      value: belumAbsen.toString(),
+                      color: AppColors.warning,
+                    ),
+                    const SizedBox(width: 8),
+                    _KelasStatItem(
+                      icon: Icons.people_alt_rounded,
+                      label: 'Total',
+                      value: totalSiswa.toString(),
+                      color: AppColors.accent,
+                    ),
+                  ],
+                ),
+
               ],
             ),
           ),
-          // Status
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: statusColor.withValues(alpha: 0.3),
-                width: 1,
-              ),
-            ),
-            child: Text(
-              statusLabel,
-              style: TextStyle(
-                color: statusColor,
-                fontWeight: FontWeight.bold,
-                fontSize: 11,
-              ),
-            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  // ─── Detail Siswa Per Kelas (Bottom Sheet) ────────────────────
+  void _showDetailSiswaPerKelas({
+    required String kelas,
+    required List<Siswa> siswaKelas,
+    required Map<String, String> statusMap,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        height: MediaQuery.of(ctx).size.height * 0.75,
+        decoration: const BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
           ),
+        ),
+        child: Column(
+          children: [
+            // Handle bar
+            Container(
+              margin: const EdgeInsets.only(top: 10),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.border,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40, height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.class_, color: AppColors.primary, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          kelas,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: AppColors.foreground,
+                          ),
+                        ),
+                        Text(
+                          '${siswaKelas.length} siswa',
+                          style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Close button
+                  GestureDetector(
+                    onTap: () => Navigator.pop(ctx),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.border.withValues(alpha: 0.5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close, size: 18, color: AppColors.muted),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Status summary bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _buildBottomSheetStatusBar(siswaKelas, statusMap),
+            ),
+            const SizedBox(height: 8),
+            // Daftar siswa
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                itemCount: siswaKelas.length,
+                itemBuilder: (context, index) {
+                  final siswa = siswaKelas[index];
+                  final status = statusMap[siswa.id];
+                  final sudahAbsen = status != null;
+
+                  String statusLabel;
+                  Color statusColor;
+                  if (sudahAbsen) {
+                    final labels = {'hadir': 'Hadir', 'izin': 'Izin', 'sakit': 'Sakit', 'alpa': 'Alpa'};
+                    final colors = {'hadir': AppColors.success, 'izin': AppColors.accent, 'sakit': AppColors.warning, 'alpa': Colors.red};
+                    statusLabel = labels[status] ?? status;
+                    statusColor = colors[status] ?? AppColors.muted;
+                  } else {
+                    statusLabel = 'Belum Absen';
+                    statusColor = AppColors.muted;
+                  }
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: sudahAbsen
+                              ? statusColor.withValues(alpha: 0.12)
+                              : AppColors.border.withValues(alpha: 0.5),
+                          child: Text(
+                            siswa.nama.isNotEmpty ? siswa.nama[0].toUpperCase() : '?',
+                            style: TextStyle(
+                              color: sudahAbsen ? statusColor : AppColors.muted,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${index + 1}. ${siswa.nama}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                  color: AppColors.foreground,
+                                ),
+                              ),
+                              Text(
+                                siswa.nis,
+                                style: const TextStyle(color: AppColors.muted, fontSize: 11),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            statusLabel,
+                            style: TextStyle(
+                              color: statusColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Bottom Sheet Status Bar ──────────────────────────────────
+  Widget _buildBottomSheetStatusBar(
+    List<Siswa> siswaKelas,
+    Map<String, String> statusMap,
+  ) {
+    final hadir = siswaKelas.where((s) => statusMap[s.id] == 'hadir').length;
+    final izin = siswaKelas.where((s) => statusMap[s.id] == 'izin').length;
+    final sakit = siswaKelas.where((s) => statusMap[s.id] == 'sakit').length;
+    final alpa = siswaKelas.where((s) => statusMap[s.id] == 'alpa').length;
+    final belumAbsen = siswaKelas.where((s) => !statusMap.containsKey(s.id)).length;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          _SheetStatusPill(label: 'H', value: hadir, color: AppColors.success),
+          _SheetStatusPill(label: 'I', value: izin, color: AppColors.accent),
+          _SheetStatusPill(label: 'S', value: sakit, color: AppColors.warning),
+          _SheetStatusPill(label: 'A', value: alpa, color: Colors.red),
+          _SheetStatusPill(label: '?', value: belumAbsen, color: AppColors.muted),
         ],
       ),
     );
   }
 }
 
-// ── Filter Chip (untuk filter kelas) ──
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _FilterChip({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : AppColors.card,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.border,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : AppColors.foreground,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-            fontSize: 13,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Status Pill (ringkasan status di daftar hadir) ──
-class _StatusPill extends StatelessWidget {
+// ─── Bottom Sheet Status Pill ──────────────────────────────────
+class _SheetStatusPill extends StatelessWidget {
   final String label;
   final int value;
   final Color color;
 
-  const _StatusPill({
+  const _SheetStatusPill({
     required this.label,
     required this.value,
     required this.color,
@@ -648,11 +702,11 @@ class _StatusPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        margin: const EdgeInsets.symmetric(horizontal: 2),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Column(
           children: [
@@ -661,19 +715,56 @@ class _StatusPill extends StatelessWidget {
               style: TextStyle(
                 color: color,
                 fontWeight: FontWeight.bold,
-                fontSize: 18,
+                fontSize: 16,
               ),
             ),
             Text(
               label,
-              style: TextStyle(
-                color: color.withValues(alpha: 0.8),
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-              ),
+              style: TextStyle(color: color.withValues(alpha: 0.8), fontSize: 10),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── Kelas Stat Item ──────────────────────────────────────────
+class _KelasStatItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _KelasStatItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(width: 2),
+          Text(
+            label,
+            style: TextStyle(color: AppColors.muted, fontSize: 10),
+          ),
+        ],
       ),
     );
   }

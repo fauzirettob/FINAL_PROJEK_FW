@@ -15,6 +15,14 @@
         { "fieldPath": "siswaId", "order": "ASCENDING" },
         { "fieldPath": "tanggal", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "absensi",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "kelas", "order": "ASCENDING" },
+        { "fieldPath": "tanggal", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

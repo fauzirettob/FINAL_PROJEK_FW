@@ -5,13 +5,14 @@ import '../../theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
 import 'home_screen.dart';
-import 'scan_screen.dart';
+import 'absen_kelas_screen.dart';
 import 'students_screen.dart';
 import 'profile_screen.dart';
 import 'admin_dashboard_screen.dart';
 import 'tambah_guru_screen.dart';
 import 'olah_data_screen.dart';
 import 'login_screen.dart';
+import 'rekap_absensi_screen.dart';
 
 class MainShell extends StatefulWidget {
   final FirestoreService? firestoreService;
@@ -182,7 +183,8 @@ class _MainShellState extends State<MainShell> {
   Widget _buildGuruShell() {
     final screens = <Widget>[
       HomeScreen(onNavigateToTab: switchToTab, firestoreService: widget.firestoreService),
-      const ScanScreen(),
+      const AbsenKelasScreen(),
+      const RekapAbsensiScreen(),
       const ProfileScreen(),
     ];
 
@@ -206,9 +208,14 @@ class _MainShellState extends State<MainShell> {
               label: "Beranda",
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.camera_alt_outlined),
-              activeIcon: Icon(Icons.camera_alt),
+              icon: Icon(Icons.edit_note_outlined),
+              activeIcon: Icon(Icons.edit_note),
               label: "Absen Kelas",
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.table_chart_outlined),
+              activeIcon: Icon(Icons.table_chart),
+              label: "Rekap",
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_outline),
@@ -277,7 +284,7 @@ class _MainShellState extends State<MainShell> {
 
   void switchToTab(int index) {
     final auth = context.read<AuthProvider>();
-    final maxIndex = auth.isAdmin ? 4 : 2;
+    final maxIndex = auth.isAdmin ? 4 : 3;
     if (index >= 0 && index <= maxIndex) {
       setState(() => _currentIndex = index);
     }

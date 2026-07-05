@@ -111,6 +111,29 @@ service cloud.firestore {
       allow delete: if isAuthenticated();
     }
 
+    // ─── KELAS LOCKS ────────────────────────────────────────
+    // Digunakan oleh fitur kunci absensi kelas
+    match /kelas_locks/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+        && hasFields(['kelas', 'tanggal', 'isLocked', 'lockedAt', 'lockedBy'])
+        && isString('kelas')
+        && isTimestamp('tanggal')
+        && isString('lockedBy');
+      allow write: if isAuthenticated();
+    }
+
+    // ─── KELAS NOTIFIKASI ───────────────────────────────────
+    // Digunakan untuk menandai notifikasi kelas sudah dikirim
+    match /kelas_notifikasi/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+        && hasFields(['kelas', 'tanggal', 'dikirim', 'dikirimAt'])
+        && isString('kelas')
+        && isTimestamp('tanggal');
+      allow write: if isAuthenticated();
+    }
+
     // ─── DENY ─────────────────────────────────────────────
     // Tolak semua akses ke koleksi lain yang tidak didefinisikan
     match /{document=**} {

@@ -8,6 +8,7 @@ import '../../models/guru.dart';
 import '../../models/absensi.dart';
 import '../../providers/auth_provider.dart';
 import 'manage_admin_screen.dart';
+import 'rekap_absensi_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   final void Function(int tabIndex)? onNavigateToTab;
@@ -186,6 +187,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
             const SizedBox(height: 8),
             _AdminMenuCard(
+              icon: Icons.table_chart_rounded,
+              color: const Color(0xFF8B5CF6),
+              label: "Rekap Absensi",
+              subtitle: "Lihat rekap per kelas & tanggal",
+              onTap: _openRekapAbsensi,
+            ),
+            const SizedBox(height: 8),
+            _AdminMenuCard(
               icon: Icons.manage_search,
               color: AppColors.warning,
               label: "Olah Data",
@@ -227,6 +236,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const ManageAdminScreen()),
+    );
+  }
+
+  void _openRekapAbsensi() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const RekapAbsensiScreen()),
     );
   }
 }
