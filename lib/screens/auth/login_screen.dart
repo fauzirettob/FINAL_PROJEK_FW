@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
+import '../../services/toast_service.dart';
 import '../../theme/app_theme.dart';
 import 'register_screen.dart';
 import 'main_shell.dart';
@@ -222,11 +223,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             } else {
                               pesan = e.toString();
                             }
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(pesan),
-                                backgroundColor: Colors.red.shade600,
-                              ),
+                            ToastService.show(
+                              context,
+                              message: pesan,
+                              backgroundColor: Colors.red.shade600,
+                              icon: Icons.error_outline,
                             );
                           } finally {
                             if (context.mounted) {

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../services/toast_service.dart';
+
 import '../../theme/app_theme.dart';
 import '../../services/firestore_service.dart';
 import '../../models/siswa.dart';
@@ -76,8 +78,11 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
             Navigator.of(context).pop(true); // Kembali ke daftar siswa dengan result
           } catch (e) {
             if (!dialogContext.mounted) return;
-            ScaffoldMessenger.of(dialogContext).showSnackBar(
-              SnackBar(content: Text('Gagal menyimpan: $e')),
+            ToastService.show(
+              dialogContext,
+              message: 'Gagal menyimpan: $e',
+              backgroundColor: Colors.red.shade600,
+              icon: Icons.error_outline,
             );
           } finally {
             // Hanya reset loading jika gagal — jika berhasil, dialog sudah di-pop

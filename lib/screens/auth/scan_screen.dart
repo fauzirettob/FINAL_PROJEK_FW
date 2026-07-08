@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../../services/firestore_service.dart';
+import '../../services/toast_service.dart';
 import '../../services/whatsapp_service.dart';
 import '../../models/absensi.dart';
 import '../../models/siswa.dart';
@@ -67,9 +68,7 @@ class _ScanScreenState extends State<ScanScreen> {
     final nis = _nisController.text.trim();
 
     if (nis.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Masukkan NIS siswa')),
-      );
+      ToastService.show(context, message: 'Masukkan NIS siswa');
       return;
     }
 
@@ -80,9 +79,7 @@ class _ScanScreenState extends State<ScanScreen> {
 
       if (siswa == null) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Siswa dengan NIS $nis tidak ditemukan')),
-        );
+        ToastService.show(context, message: 'Siswa dengan NIS $nis tidak ditemukan');
         setState(() => _isProcessing = false);
         return;
       }
@@ -100,9 +97,7 @@ class _ScanScreenState extends State<ScanScreen> {
         userId = admin.id;
       } else {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User belum ditemukan. Silakan login ulang.')),
-        );
+        ToastService.show(context, message: 'User belum ditemukan. Silakan login ulang.');
         setState(() => _isProcessing = false);
         return;
       }
@@ -238,8 +233,11 @@ class _ScanScreenState extends State<ScanScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+      ToastService.show(
+        context,
+        message: 'Error: $e',
+        backgroundColor: Colors.red.shade600,
+        icon: Icons.error_outline,
       );
     } finally {
       if (mounted) setState(() => _isProcessing = false);

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
+import '../../services/toast_service.dart';
 import 'home_screen.dart';
 import 'absen_kelas_screen.dart';
 import 'students_screen.dart';
@@ -165,12 +166,9 @@ class _MainShellState extends State<MainShell> {
 
       // Tampilkan snackbar SEBELUM navigasi (context masih valid)
       if (message != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: AppColors.accent,
-            behavior: SnackBarBehavior.floating,
-          ),
+        ToastService.show(
+          context,
+          message: message,
         );
       }
 

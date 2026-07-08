@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/absensi.dart';
 import '../../models/siswa.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
-import '../../services/whatsapp_service.dart';
+import '../../services/toast_service.dart';
 import '../../theme/app_theme.dart';
 
 class StudentsScreen extends StatefulWidget {
@@ -61,16 +60,17 @@ class _StudentsScreenState extends State<StudentsScreen> {
             if (!dialogContext.mounted) return;
             Navigator.of(dialogContext).pop();
             if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Siswa ${siswa.nama} berhasil dihapus.'),
-                backgroundColor: AppColors.success,
-              ),
+            ToastService.show(
+              context,
+              message: 'Siswa ${siswa.nama} berhasil dihapus.',
             );
           } catch (e) {
             if (!dialogContext.mounted) return;
-            ScaffoldMessenger.of(dialogContext).showSnackBar(
-              SnackBar(content: Text('Gagal menghapus: $e')),
+            ToastService.show(
+              dialogContext,
+              message: 'Gagal menghapus: $e',
+              backgroundColor: Colors.red.shade600,
+              icon: Icons.error_outline,
             );
           } finally {
             setDialogState?.call(() => isLoading = false);
@@ -222,16 +222,17 @@ class _StudentsScreenState extends State<StudentsScreen> {
 
             if (!dialogContext.mounted) return;
             Navigator.of(dialogContext).pop();
-            ScaffoldMessenger.of(dialogContext).showSnackBar(
-              const SnackBar(
-                content: Text('Data siswa berhasil diperbarui.'),
-                backgroundColor: AppColors.success,
-              ),
+            ToastService.show(
+              dialogContext,
+              message: 'Data siswa berhasil diperbarui.',
             );
           } catch (e) {
             if (!dialogContext.mounted) return;
-            ScaffoldMessenger.of(dialogContext).showSnackBar(
-              SnackBar(content: Text('Gagal menyimpan: $e')),
+            ToastService.show(
+              dialogContext,
+              message: 'Gagal menyimpan: $e',
+              backgroundColor: Colors.red.shade600,
+              icon: Icons.error_outline,
             );
           } finally {
             setDialogState?.call(() => isLoading = false);
@@ -503,13 +504,17 @@ class _StudentsScreenState extends State<StudentsScreen> {
 
             if (!dialogContext.mounted) return;
             Navigator.of(dialogContext).pop();
-            ScaffoldMessenger.of(dialogContext).showSnackBar(
-              const SnackBar(content: Text('Data berhasil disimpan.')),
+            ToastService.show(
+              dialogContext,
+              message: 'Data berhasil disimpan.',
             );
           } catch (e) {
             if (!dialogContext.mounted) return;
-            ScaffoldMessenger.of(dialogContext).showSnackBar(
-              SnackBar(content: Text('Gagal menyimpan: $e')),
+            ToastService.show(
+              dialogContext,
+              message: 'Gagal menyimpan: $e',
+              backgroundColor: Colors.red.shade600,
+              icon: Icons.error_outline,
             );
           } finally {
             setDialogState?.call(() => isLoading = false);
@@ -737,198 +742,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
     );
   }
 
-  /// Kirim notifikasi rekap absensi hari ini ke orang tua siswa
-  Future<void> _kirimNotifikasiSemua() async {
-    final fs = FirestoreService();
-    // Ambil data siswa
-    final semuaSiswa = await fs.getAllSiswa();
-    if (semuaSiswa.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Belum ada siswa terdaftar.'),
-          backgroundColor: AppColors.accent,
-        ),
-      );
-      return;
-    }
-
-    // Filter siswa yang punya nomor HP (trim spasi)
-    final siswaDenganHp = semuaSiswa
-        .where((s) => s.hpOrtu.trim().isNotEmpty)
-        .toList();
-
-    if (siswaDenganHp.isEmpty) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Tidak ada siswa dengan nomor HP orang tua.'),
-          backgroundColor: AppColors.accent,
-        ),
-      );
-      return;
-    }
-
-    // Tampilkan dialog konfirmasi
-    if (!mounted) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.send_to_mobile, color: AppColors.whatsapp),
-            SizedBox(width: 8),
-            Text('Kirim Notifikasi'),
-          ],
-        ),
-        content: Text(
-          'Kirim rekap absensi hari ini ke ${siswaDenganHp.length} orang tua siswa via WhatsApp?\n\n'
-          'Notifikasi akan dikirim ke nomor yang terdaftar di data siswa.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.pop(ctx, true),
-            icon: const Icon(Icons.send, size: 18),
-            label: const Text('Kirim'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.whatsapp,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-    if (!mounted) return;
-
-    // Progress state
-    int total = siswaDenganHp.length;
-    int terkirim = 0;
-    int gagal = 0;
-
-    // Progress state
-    void Function(void Function())? updateProgress;
-
-    // Tampilkan progress dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            updateProgress = setStateDialog;
-            return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              content: SizedBox(
-                width: 300,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircularProgressIndicator(),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Mengirim notifikasi...\n$terkirim dari $total terkirim',
-                      textAlign: TextAlign.center,
-                    ),
-                    if (gagal > 0) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        '$gagal gagal',
-                        style: const TextStyle(color: Colors.red, fontSize: 12),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-
-    // Ambil absensi hari ini (pakai query yang lebih efisien)
-    final now = DateTime.now();
-    final todayStr = DateFormat('dd/MM/yyyy').format(now);
-    final absensiHariIni = await fs.getAbsensiHariIni(now).first;
-
-    // Map siswaId -> status absensi
-    final statusMap = <String, String>{};
-    for (final a in absensiHariIni) {
-      statusMap[a.siswaId] = a.status;
-    }
-
-    for (final siswa in siswaDenganHp) {
-      final status = statusMap[siswa.id] ?? 'Belum absen';
-
-      final berhasil = await WhatsAppService.kirimNotifikasiRekapAbsensi(
-        hpOrtu: siswa.hpOrtu,
-        namaSiswa: siswa.nama,
-        status: status,
-        tanggal: todayStr,
-      );
-
-      if (berhasil) {
-        terkirim++;
-      } else {
-        gagal++;
-      }
-
-      // Update progress dialog
-      updateProgress?.call(() {});
-    }
-
-    if (!mounted) return;
-    // Tutup progress dialog
-    Navigator.of(context).pop();
-
-    if (!mounted) return;
-    // Tampilkan hasil
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(
-              gagal == 0 ? Icons.check_circle : Icons.warning_amber_rounded,
-              color: gagal == 0 ? AppColors.success : AppColors.warning,
-            ),
-            const SizedBox(width: 8),
-            Text(gagal == 0 ? 'Terkirim' : 'Selesai'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('✅ Berhasil: $terkirim'),
-            if (gagal > 0) Text('❌ Gagal: $gagal'),
-            const SizedBox(height: 8),
-            Text(
-              'Notifikasi rekap absensi telah dikirim ke nomor WhatsApp orang tua siswa.',
-              style: const TextStyle(fontSize: 13, color: AppColors.muted),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final fs = FirestoreService();
@@ -936,13 +749,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Data Siswa'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.send_to_mobile, color: AppColors.whatsapp),
-            tooltip: 'Kirim Notifikasi ke Semua',
-            onPressed: () => _kirimNotifikasiSemua(),
-          ),
-        ],
+        actions: [],
       ),
       body: _buildKelasView(fs),
       floatingActionButton: FloatingActionButton.extended(

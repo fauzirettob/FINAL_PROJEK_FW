@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../../services/firestore_service.dart';
+import '../../services/toast_service.dart';
 import '../../services/whatsapp_service.dart';
 import '../../models/siswa.dart';
 import '../../models/absensi.dart';
@@ -125,8 +126,11 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
       debugPrint('Gagal memuat data: $e');
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memuat data: $e')),
+        ToastService.show(
+          context,
+          message: 'Gagal memuat data: $e',
+          backgroundColor: Colors.red.shade600,
+          icon: Icons.error_outline,
         );
       }
     }
@@ -207,25 +211,20 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
           _existingAbsensi = updatedAbsensi;
           _isSaving = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '✅ Absensi kelas ${widget.kelas} berhasil disimpan',
-            ),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-          ),
+        ToastService.show(
+          context,
+          message: '✅ Absensi kelas ${widget.kelas} berhasil disimpan',
         );
       }
     } catch (e) {
       debugPrint('Gagal menyimpan: $e');
       if (mounted) {
         setState(() => _isSaving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menyimpan: $e'),
-            backgroundColor: Colors.red,
-          ),
+        ToastService.show(
+          context,
+          message: 'Gagal menyimpan: $e',
+          backgroundColor: Colors.red.shade600,
+          icon: Icons.error_outline,
         );
       }
     }
@@ -279,18 +278,18 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
 
       if (mounted) {
         setState(() => _isLocked = true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('🔒 Absensi kelas ${widget.kelas} telah dikunci'),
-            backgroundColor: AppColors.warning,
-            behavior: SnackBarBehavior.floating,
-          ),
+        ToastService.show(
+          context,
+          message: '🔒 Absensi kelas ${widget.kelas} telah dikunci',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal mengunci: $e')),
+        ToastService.show(
+          context,
+          message: 'Gagal mengunci: $e',
+          backgroundColor: Colors.red.shade600,
+          icon: Icons.error_outline,
         );
       }
     }
@@ -305,11 +304,9 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
 
     if (siswaDenganHp.isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Tidak ada siswa dengan nomor HP orang tua'),
-          backgroundColor: AppColors.accent,
-        ),
+      ToastService.show(
+        context,
+        message: 'Tidak ada siswa dengan nomor HP orang tua',
       );
       return;
     }

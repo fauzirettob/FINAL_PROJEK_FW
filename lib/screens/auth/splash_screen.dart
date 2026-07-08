@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../../theme/app_theme.dart';
 import 'login_screen.dart';
 import '../auth/main_shell.dart';
@@ -19,13 +18,20 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
 
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnimation;
+  late AnimationController _bgZoomController;
+  late Animation<double> _bgZoomAnimation;
+
+  late AnimationController _staggerController;
+  late Animation<double> _textFade1;
+  late Animation<Offset> _textSlide1;
+  late Animation<double> _textFade2;
+  late Animation<Offset> _textSlide2;
 
   @override
   void initState() {
     super.initState();
 
+    // ── Entrance: fade + scale ──
     _entranceController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
@@ -47,43 +53,75 @@ class _SplashScreenState extends State<SplashScreen>
 
     _entranceController.forward();
 
-    _pulseController = AnimationController(
+    // ── Background slow zoom ──
+    _bgZoomController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1800),
+      duration: const Duration(seconds: 15),
     )..repeat(reverse: true);
 
-    _pulseAnimation = Tween<double>(begin: 0.92, end: 1.08).animate(
+    _bgZoomAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
       CurvedAnimation(
-        parent: _pulseController,
-        curve: Curves.easeInOut,
+        parent: _bgZoomController,
+        curve: Curves.easeInOutSine,
       ),
     );
+
+    // ── Staggered text: slide + fade ──
+    _staggerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+
+    _textFade1 = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _staggerController,
+        curve: const Interval(0.0, 0.5, curve: Curves.easeOut),
+      ),
+    );
+    _textSlide1 = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _staggerController,
+        curve: const Interval(0.0, 0.5, curve: Curves.easeOutCubic),
+      ),
+    );
+    _textFade2 = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _staggerController,
+        curve: const Interval(0.2, 0.7, curve: Curves.easeOut),
+      ),
+    );
+    _textSlide2 = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _staggerController,
+        curve: const Interval(0.2, 0.7, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    Future.delayed(const Duration(milliseconds: 400), () {
+      if (mounted) _staggerController.forward();
+    });
 
     _navigateAfterDelay();
   }
 
   Future<void> _navigateAfterDelay() async {
-    // Tunggu animasi masuk selesai
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(const Duration(seconds: 15));
 
     if (!mounted) return;
 
     final auth = context.read<AuthProvider>();
 
-    // Jika user sudah login (session Firebase Auth dipulihkan),
-    // tunggu sampai role teridentifikasi dari Firestore
     if (auth.user != null) {
-      // Polling maksimal 5 detik untuk role
       int retries = 0;
       while (retries < 15 && auth.role == null && mounted) {
         await Future.delayed(const Duration(milliseconds: 350));
         retries++;
-      }
-
-      // Jika role masih null setelah polling, coba muat ulang manual
-      if (auth.role == null && auth.user != null && mounted) {
-        // Muat ulang auth data — _onAuthStateChanged akan mencoba lagi
-        // dengan fallback ke collection admin/guru
       }
     }
 
@@ -109,7 +147,8 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void dispose() {
     _entranceController.dispose();
-    _pulseController.dispose();
+    _bgZoomController.dispose();
+    _staggerController.dispose();
     super.dispose();
   }
 
@@ -118,92 +157,120 @@ class _SplashScreenState extends State<SplashScreen>
     return Scaffold(
       body: Stack(
         children: [
-          // Gradient overlay
+          // ── Background Image with slow zoom ──
+          AnimatedBuilder(
+            animation: _bgZoomAnimation,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: _bgZoomAnimation.value,
+                child: child,
+              );
+            },
+            child: Image.asset(
+              'assets/foto.png',
+              width: double.infinity,
+              height: double.infinity,
+              fit: BoxFit.cover,
+            ),
+          ),
+
+          // ── Dark gradient overlay ──
           Container(
             width: double.infinity,
             height: double.infinity,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  AppColors.primary,
-                  Color(0xFF1A7A4E),
+                  Colors.black.withValues(alpha: 0.55),
+                  Colors.black.withValues(alpha: 0.35),
+                  AppColors.primary.withValues(alpha: 0.6),
+                  Color(0xFF1A7A4E).withValues(alpha: 0.85),
                 ],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
+                stops: const [0.0, 0.3, 0.6, 1.0],
               ),
             ),
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: ScaleTransition(
-            scale: _scaleAnimation,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Logo SVG dengan animasi pulse
-                AnimatedBuilder(
-                  animation: _pulseAnimation,
-                  builder: (context, child) {
-                    return Transform.scale(
-                      scale: _pulseAnimation.value,
-                      child: child,
-                    );
-                  },
-                  child: Container(
-                    width: 140,
-                    height: 140,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    padding: const EdgeInsets.all(28),
-                    child: SvgPicture.asset(
-                      'assets/images/student_illustration.svg',
-                      colorFilter: const ColorFilter.mode(
-                        Colors.white,
-                        BlendMode.srcIn,
-                      ),
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // Nama Aplikasi
-                Text(
-                  "Absensi Siswa",
-                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 36,
-                      ),
-                ),
-                const SizedBox(height: 12),
-
-                // Tagline
-                Text(
-                  "Catat kehadiran dengan mudah",
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.85),
-                        fontSize: 16,
-                      ),
-                ),
-                const SizedBox(height: 48),
-
-                // Loading indicator
-                SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 3,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Colors.white.withValues(alpha: 0.8),
-                    ),
-                  ),
-                ),
-              ],
-            ),
           ),
-        ),
+
+          // ── Content ──
+          FadeTransition(
+            opacity: _fadeAnimation,
+            child: ScaleTransition(
+              scale: _scaleAnimation,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                  // ── Text: staggered slide-up ──
+                  SlideTransition(
+                    position: _textSlide1,
+                    child: FadeTransition(
+                      opacity: _textFade1,
+                      child: Text(
+                        "Absensi Siswa",
+                        style: Theme.of(context)
+                            .textTheme
+                            .headlineLarge
+                            ?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 36,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withValues(alpha: 0.3),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  SlideTransition(
+                    position: _textSlide2,
+                    child: FadeTransition(
+                      opacity: _textFade2,
+                      child: Text(
+                        "Catat kehadiran dengan mudah",
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyLarge
+                            ?.copyWith(
+                              color: Colors.white.withValues(alpha: 0.9),
+                              fontSize: 16,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 48),
+
+                  // ── Loading indicator ──
+                  SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Colors.white.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              ),
+            ),
           ),
         ],
       ),

@@ -88,6 +88,10 @@ class FirestoreService {
         .toList();
   }
 
+  Future<void> updateGuru(String id, Map<String, dynamic> data) async {
+    await _db.collection('guru').doc(id).update(data);
+  }
+
   Future<void> deleteGuru(String id) async {
     await _db.collection('guru').doc(id).delete();
   }
@@ -115,6 +119,10 @@ class FirestoreService {
     return snapshot.docs
         .map((doc) => Admin.fromMap(doc.data(), doc.id))
         .toList();
+  }
+
+  Future<void> updateAdmin(String id, Map<String, dynamic> data) async {
+    await _db.collection('admin').doc(id).update(data);
   }
 
   Future<void> deleteAdmin(String id) async {

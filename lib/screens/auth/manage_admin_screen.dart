@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../theme/app_theme.dart';
 import '../../services/firestore_service.dart';
+import '../../services/toast_service.dart';
 import '../../models/admin.dart';
 
 class ManageAdminScreen extends StatefulWidget {
@@ -52,11 +53,11 @@ class _ManageAdminScreenState extends State<ManageAdminScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal memuat data admin: $e'),
-          backgroundColor: Colors.red,
-        ),
+      ToastService.show(
+        context,
+        message: 'Gagal memuat data admin: $e',
+        backgroundColor: Colors.red.shade600,
+        icon: Icons.error_outline,
       );
     }
   }
@@ -121,20 +122,18 @@ class _ManageAdminScreenState extends State<ManageAdminScreen> {
     try {
       await _fs.deleteAdmin(admin.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Admin "${admin.nama}" berhasil dihapus'),
-          backgroundColor: AppColors.success,
-        ),
+      ToastService.show(
+        context,
+        message: 'Admin "${admin.nama}" berhasil dihapus',
       );
       _loadAdmins();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal menghapus admin: $e'),
-          backgroundColor: Colors.red,
-        ),
+      ToastService.show(
+        context,
+        message: 'Gagal menghapus admin: $e',
+        backgroundColor: Colors.red.shade600,
+        icon: Icons.error_outline,
       );
     }
   }

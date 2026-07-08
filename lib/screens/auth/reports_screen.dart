@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../theme/app_theme.dart';
 import '../../services/firestore_service.dart';
 import '../../services/storage_service.dart';
+import '../../services/toast_service.dart';
 import '../../models/absensi.dart';
 import 'history_screen.dart';
 
@@ -716,11 +717,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
       await _fs.deleteAbsensi(a.id);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menghapus: $e'),
-            behavior: SnackBarBehavior.floating,
-          ),
+        ToastService.show(
+          context,
+          message: 'Gagal menghapus: $e',
+          backgroundColor: Colors.red.shade600,
+          icon: Icons.error_outline,
         );
       }
     }

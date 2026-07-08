@@ -29,6 +29,33 @@ class StorageService {
     return downloadUrl;
   }
 
+  /// Upload foto profil guru dan return URL download.
+  Future<String> uploadProfil({
+    required File file,
+    required String guruId,
+  }) async {
+    final fileName = 'profil/$guruId.jpg';
+    final ref = _storage.ref().child(fileName);
+
+    // Hapus foto lama jika ada
+    try {
+      await ref.delete();
+    } catch (_) {}
+
+    await ref.putFile(
+      file,
+      SettableMetadata(
+        contentType: 'image/jpeg',
+        customMetadata: {
+          'uploadedAt': DateTime.now().toIso8601String(),
+        },
+      ),
+    );
+
+    final downloadUrl = await ref.getDownloadURL();
+    return downloadUrl;
+  }
+
   /// Hapus foto dari Storage berdasarkan URL (optional, untuk cleanup).
   Future<void> hapusFoto(String fotoUrl) async {
     try {

@@ -7,6 +7,8 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../services/toast_service.dart';
+
 import '../../theme/app_theme.dart';
 import '../../services/firestore_service.dart';
 import '../../models/absensi.dart';
@@ -758,11 +760,9 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
   // ─── Ekspor CSV ──────────────────────────────────────────────
   Future<void> _exportCsv() async {
     if (_startDate == null || _endDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Pilih tanggal terlebih dahulu'),
-          behavior: SnackBarBehavior.floating,
-        ),
+      ToastService.show(
+        context,
+        message: 'Pilih tanggal terlebih dahulu',
       );
       return;
     }
@@ -773,11 +773,9 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
 
       if (filtered.isEmpty) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Tidak ada data untuk diekspor'),
-            behavior: SnackBarBehavior.floating,
-          ),
+        ToastService.show(
+          context,
+          message: 'Tidak ada data untuk diekspor',
         );
         return;
       }
@@ -832,11 +830,11 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal mengekspor: $e'),
-          behavior: SnackBarBehavior.floating,
-        ),
+      ToastService.show(
+        context,
+        message: 'Gagal mengekspor: $e',
+        backgroundColor: Colors.red.shade600,
+        icon: Icons.error_outline,
       );
     }
   }

@@ -1,8 +1,14 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+
 import '../../theme/app_theme.dart';
 import '../../services/firestore_service.dart';
+import '../../services/toast_service.dart';
 import '../../models/siswa.dart';
 import '../../models/guru.dart';
 import '../../models/absensi.dart';
@@ -21,6 +27,7 @@ class AdminDashboardScreen extends StatefulWidget {
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   late final FirestoreService _fs = FirestoreService();
+  final ImagePicker _picker = ImagePicker();
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -28,6 +35,135 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     if (hour < 15) return 'Selamat Siang';
     if (hour < 18) return 'Selamat Sore';
     return 'Selamat Malam';
+  }
+
+  // ─── Helper: Ambil inisial dari nama ─────────────────────────
+  String _getInitials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length >= 2) {
+      return parts.take(2).map((p) => p[0].toUpperCase()).join();
+    }
+    final word = parts.isNotEmpty ? parts[0] : '';
+    if (word.length <= 2) return word.toUpperCase();
+    return word.substring(0, 2).toUpperCase();
+  }
+
+  // ─── Upload Foto Profil ─────────────────────────────────────
+  Future<void> _uploadFotoProfil() async {
+    final auth = context.read<AuthProvider>();
+    if (!auth.isAdmin) return;
+    final admin = auth.admin;
+    if (admin == null) return;
+
+    final existingFotoUrl = admin.fotoUrl;
+
+    final source = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 40, height: 4,
+                decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)),
+              ),
+              const SizedBox(height: 20),
+              const Text('Foto Profil', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.foreground)),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: Container(width: 48, height: 48,
+                  decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.camera_alt_rounded, color: AppColors.accent),
+                ),
+                title: const Text('Ambil Foto'),
+                subtitle: const Text('Gunakan kamera'),
+                onTap: () => Navigator.pop(ctx, 'camera'),
+              ),
+              ListTile(
+                leading: Container(width: 48, height: 48,
+                  decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.photo_library_rounded, color: AppColors.primary),
+                ),
+                title: const Text('Pilih dari Galeri'),
+                subtitle: const Text('Ambil dari penyimpanan'),
+                onTap: () => Navigator.pop(ctx, 'gallery'),
+              ),
+              if (existingFotoUrl != null && existingFotoUrl.isNotEmpty) ...[
+                const Divider(height: 1),
+                ListTile(
+                  leading: Container(width: 48, height: 48,
+                    decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                    child: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                  ),
+                  title: const Text('Hapus Foto'),
+                  subtitle: const Text('Kembali ke inisial'),
+                  onTap: () => Navigator.pop(ctx, 'delete'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (source == null || !mounted) return;
+    if (source == 'delete') { await _hapusFotoProfil(); return; }
+
+    try {
+      final imageSource = source == 'camera' ? ImageSource.camera : ImageSource.gallery;
+      final XFile? picked = await _picker.pickImage(source: imageSource, imageQuality: 80, maxWidth: 512, maxHeight: 512);
+      if (picked == null || !mounted) return;
+
+      ToastService.show(context, message: 'Menyimpan foto...');
+
+      final appDir = await getApplicationDocumentsDirectory();
+      final profilDir = Directory('${appDir.path}/profil');
+      if (!await profilDir.exists()) await profilDir.create(recursive: true);
+
+      final ext = picked.path.split('.').last;
+      final localPath = '${profilDir.path}/${admin.id}.$ext';
+      await File(picked.path).copy(localPath);
+
+      await _fs.updateAdmin(admin.id, {'fotoUrl': localPath});
+      if (!mounted) return;
+
+      final updatedAdmin = await _fs.getAdmin(admin.id);
+      if (updatedAdmin != null && mounted) auth.updateAdmin(updatedAdmin);
+
+      if (!mounted) return;
+      ToastService.show(context, message: 'Foto profil berhasil disimpan!');
+    } catch (e) {
+      if (!mounted) return;
+      ToastService.show(context, message: 'Gagal simpan foto: $e', backgroundColor: Colors.red.shade600, icon: Icons.error_outline);
+    }
+  }
+
+  // ─── Hapus Foto Profil ───────────────────────────────────────
+  Future<void> _hapusFotoProfil() async {
+    final auth = context.read<AuthProvider>();
+    final admin = auth.admin;
+    if (admin == null || admin.fotoUrl == null) return;
+
+    try {
+      final localFile = File(admin.fotoUrl!);
+      if (await localFile.exists()) await localFile.delete();
+
+      await _fs.updateAdmin(admin.id, {'fotoUrl': null});
+      if (!mounted) return;
+
+      final updatedAdmin = await _fs.getAdmin(admin.id);
+      if (updatedAdmin != null && mounted) auth.updateAdmin(updatedAdmin);
+
+      if (!mounted) return;
+      ToastService.show(context, message: 'Foto profil berhasil dihapus.');
+    } catch (e) {
+      if (!mounted) return;
+      ToastService.show(context, message: 'Gagal hapus foto: $e', backgroundColor: Colors.red.shade600, icon: Icons.error_outline);
+    }
   }
 
   @override
@@ -56,9 +192,34 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "$sapaan ☀️",
-                    style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "$sapaan ☀️",
+                        style: const TextStyle(color: Colors.white70, fontSize: 14),
+                      ),
+                      GestureDetector(
+                        onTap: _uploadFotoProfil,
+                        child: CircleAvatar(
+                          radius: 22,
+                          backgroundColor: Colors.white.withValues(alpha: 0.2),
+                          backgroundImage: admin?.fotoUrl != null && admin!.fotoUrl!.isNotEmpty
+                              ? (admin!.fotoUrl!.startsWith('http')
+                                  ? NetworkImage(admin!.fotoUrl!) as ImageProvider
+                                  : (File(admin!.fotoUrl!).existsSync()
+                                      ? FileImage(File(admin!.fotoUrl!))
+                                      : null))
+                              : null,
+                          child: admin?.fotoUrl == null || admin!.fotoUrl!.isEmpty
+                              ? Text(
+                                  _getInitials(namaAdmin),
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                                )
+                              : null,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   Text(

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
+import '../../services/toast_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/skeleton_loader.dart';
 
@@ -46,30 +47,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
         email.isEmpty ||
         password.isEmpty ||
         confirmPassword.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Mohon lengkapi semua data")),
-      );
+      ToastService.show(context, message: "Mohon lengkapi semua data");
       return;
     }
 
     if (!_isValidEmail(email)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Format email tidak valid")),
-      );
+      ToastService.show(context, message: "Format email tidak valid");
       return;
     }
 
     if (password.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Password minimal 6 karakter")),
-      );
+      ToastService.show(context, message: "Password minimal 6 karakter");
       return;
     }
 
     if (password != confirmPassword) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Konfirmasi password tidak cocok")),
-      );
+      ToastService.show(context, message: "Konfirmasi password tidak cocok");
       return;
     }
 
@@ -81,11 +74,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final adminCount = await FirestoreService().getAdminCount();
       if (adminCount >= 3) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            backgroundColor: Colors.red,
-            content: Text("Pendaftaran admin dibatasi maksimal 3 akun. Hubungi admin lain untuk info lebih lanjut."),
-          ),
+        ToastService.show(
+          context,
+          message: "Pendaftaran admin dibatasi maksimal 3 akun. Hubungi admin lain untuk info lebih lanjut.",
+          backgroundColor: Colors.red.shade600,
+          icon: Icons.error_outline,
         );
         return;
       }
@@ -99,11 +92,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await authProvider.register(email, password, name, role: 'admin');
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: AppColors.success,
-          content: Text("Akun Admin berhasil dibuat! Silakan login."),
-        ),
+      ToastService.show(
+        context,
+        message: "Akun Admin berhasil dibuat! Silakan login.",
+        icon: Icons.check_circle,
       );
       Navigator.of(context).popUntil((route) => route.isFirst);
     } on FirebaseAuthException catch (e) {
@@ -123,11 +115,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           pesan = e.message ?? 'Gagal membuat akun. Coba lagi.';
       }
       debugPrint('RegisterScreen: FirebaseAuthException [${e.code}]: ${e.message}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.red,
-          content: Text(pesan),
-        ),
+      ToastService.show(
+        context,
+        message: pesan,
+        backgroundColor: Colors.red.shade600,
+        icon: Icons.error_outline,
       );
     } on FirebaseException catch (e) {
       if (!mounted) return;
@@ -142,11 +134,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       } else {
         pesan = 'Error Firebase: ${e.message}. Coba deploy ulang firestore.rules.';
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.red,
-          content: Text(pesan),
-        ),
+      ToastService.show(
+        context,
+        message: pesan,
+        backgroundColor: Colors.red.shade600,
+        icon: Icons.error_outline,
       );
     } catch (e) {
       if (!mounted) return;
@@ -154,11 +146,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final pesan = e.toString().contains('Akun admin')
           ? e.toString()
           : 'Registrasi gagal: ${e.toString()}';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Colors.red,
-          content: Text(pesan),
-        ),
+      ToastService.show(
+        context,
+        message: pesan,
+        backgroundColor: Colors.red.shade600,
+        icon: Icons.error_outline,
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);

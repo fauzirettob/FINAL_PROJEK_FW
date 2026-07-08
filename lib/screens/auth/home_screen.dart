@@ -1,10 +1,14 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../theme/app_theme.dart';
 import '../../services/firestore_service.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../models/absensi.dart';
 import '../../models/siswa.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/toast_service.dart';
 import 'absen_kelas_detail_screen.dart';
 
 
@@ -20,6 +24,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late final FirestoreService _fs = widget.firestoreService ?? FirestoreService();
+  final ImagePicker _picker = ImagePicker();
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -29,11 +34,224 @@ class _HomeScreenState extends State<HomeScreen> {
     return 'Selamat Malam';
   }
 
+  Future<void> _uploadFotoProfil() async {
+    final auth = context.read<AuthProvider>();
+    final isAdmin = auth.isAdmin;
+    final admin = auth.admin;
+    final guru = auth.guru;
+
+    if (!isAdmin && guru == null) return;
+    if (isAdmin && admin == null) return;
+
+    final userId = isAdmin ? admin!.id : guru!.id;
+    final existingFotoUrl = isAdmin ? admin?.fotoUrl : guru?.fotoUrl;
+
+    final source = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Foto Profil',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: AppColors.foreground,
+                ),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: Container(
+                  width: 48, height: 48,
+                  decoration: BoxDecoration(
+                    color: AppColors.accent.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.camera_alt_rounded, color: AppColors.accent),
+                ),
+                title: const Text('Ambil Foto'),
+                subtitle: const Text('Gunakan kamera'),
+                onTap: () => Navigator.pop(ctx, 'camera'),
+              ),
+              ListTile(
+                leading: Container(
+                  width: 48, height: 48,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.photo_library_rounded, color: AppColors.primary),
+                ),
+                title: const Text('Pilih dari Galeri'),
+                subtitle: const Text('Ambil dari penyimpanan'),
+                onTap: () => Navigator.pop(ctx, 'gallery'),
+              ),
+              if (existingFotoUrl != null && existingFotoUrl.isNotEmpty) ...[
+                const Divider(height: 1),
+                ListTile(
+                  leading: Container(
+                    width: 48, height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                  ),
+                  title: const Text('Hapus Foto'),
+                  subtitle: const Text('Kembali ke inisial'),
+                  onTap: () => Navigator.pop(ctx, 'delete'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (source == null || !mounted) return;
+
+    if (source == 'delete') {
+      await _hapusFotoProfil();
+      return;
+    }
+
+    try {
+      final imageSource = source == 'camera' ? ImageSource.camera : ImageSource.gallery;
+      final XFile? picked = await _picker.pickImage(
+        source: imageSource,
+        imageQuality: 80,
+        maxWidth: 512,
+        maxHeight: 512,
+      );
+
+      if (picked == null || !mounted) return;
+
+      ToastService.show(context, message: 'Menyimpan foto...');
+
+      // Simpan foto ke direktori lokal aplikasi
+      final appDir = await getApplicationDocumentsDirectory();
+      final profilDir = Directory('${appDir.path}/profil');
+      if (!await profilDir.exists()) {
+        await profilDir.create(recursive: true);
+      }
+
+      final ext = picked.path.split('.').last;
+      final localPath = '${profilDir.path}/$userId.$ext';
+      await File(picked.path).copy(localPath);
+
+      if (isAdmin) {
+        await _fs.updateAdmin(userId, {'fotoUrl': localPath});
+      } else {
+        await _fs.updateGuru(userId, {'fotoUrl': localPath});
+      }
+
+      if (!mounted) return;
+
+      // Reload data profil
+      if (isAdmin) {
+        final updatedAdmin = await _fs.getAdmin(userId);
+        if (updatedAdmin != null && mounted) {
+          auth.updateAdmin(updatedAdmin);
+        }
+      } else {
+        final updatedGuru = await _fs.getGuru(userId);
+        if (updatedGuru != null && mounted) {
+          auth.updateGuru(updatedGuru);
+        }
+      }
+
+      if (!mounted) return;
+      ToastService.show(context, message: 'Foto profil berhasil disimpan!');
+    } catch (e) {
+      if (!mounted) return;
+      ToastService.show(
+        context,
+        message: 'Gagal simpan foto: $e',
+        backgroundColor: Colors.red.shade600,
+        icon: Icons.error_outline,
+      );
+    }
+  }
+
+  Future<void> _hapusFotoProfil() async {
+    final auth = context.read<AuthProvider>();
+    final isAdmin = auth.isAdmin;
+
+    if (isAdmin) {
+      final admin = auth.admin;
+      if (admin == null || admin.fotoUrl == null) return;
+      await _hapusFotoInternal(admin.id, admin.fotoUrl!, isAdmin: true);
+    } else {
+      final guru = auth.guru;
+      if (guru == null || guru.fotoUrl == null) return;
+      await _hapusFotoInternal(guru.id, guru.fotoUrl!, isAdmin: false);
+    }
+  }
+
+  Future<void> _hapusFotoInternal(String userId, String fotoUrl, {required bool isAdmin}) async {
+    final auth = context.read<AuthProvider>();
+
+    try {
+      // Hapus file lokal
+      final localFile = File(fotoUrl);
+      if (await localFile.exists()) {
+        await localFile.delete();
+      }
+
+      if (isAdmin) {
+        await _fs.updateAdmin(userId, {'fotoUrl': null});
+      } else {
+        await _fs.updateGuru(userId, {'fotoUrl': null});
+      }
+
+      if (!mounted) return;
+
+      if (isAdmin) {
+        final updatedAdmin = await _fs.getAdmin(userId);
+        if (updatedAdmin != null && mounted) {
+          auth.updateAdmin(updatedAdmin);
+        }
+      } else {
+        final updatedGuru = await _fs.getGuru(userId);
+        if (updatedGuru != null && mounted) {
+          auth.updateGuru(updatedGuru);
+        }
+      }
+
+      if (!mounted) return;
+      ToastService.show(context, message: 'Foto profil berhasil dihapus.');
+    } catch (e) {
+      if (!mounted) return;
+      ToastService.show(
+        context,
+        message: 'Gagal hapus foto: $e',
+        backgroundColor: Colors.red.shade600,
+        icon: Icons.error_outline,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final guru = auth.guru;
-    final namaGuru = guru?.nama ?? 'Guru';
+    final isAdmin = auth.isAdmin;
+    final fotoUrl = isAdmin ? auth.admin?.fotoUrl : auth.guru?.fotoUrl;
+    final nama = isAdmin ? auth.admin?.nama : auth.guru?.nama;
+    final displayNama = nama ?? (isAdmin ? 'Admin' : 'Guru');
     final sapaan = _getGreeting();
 
     return SafeArea(
@@ -62,17 +280,35 @@ class _HomeScreenState extends State<HomeScreen> {
                         "$sapaan 👋",
                         style: const TextStyle(color: Colors.white70, fontSize: 14),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-                        onPressed: () {
-                          _navigateToTab(4);
-                        },
+                      GestureDetector(
+                        onTap: _uploadFotoProfil,
+                        child: CircleAvatar(
+                          radius: 22,
+                          backgroundColor: Colors.white.withValues(alpha: 0.2),
+                          backgroundImage: fotoUrl != null && fotoUrl.isNotEmpty
+                              ? (fotoUrl.startsWith('http')
+                                  ? NetworkImage(fotoUrl) as ImageProvider
+                                  : (File(fotoUrl).existsSync()
+                                      ? FileImage(File(fotoUrl))
+                                      : null))
+                              : null,
+                          child: fotoUrl == null || fotoUrl.isEmpty
+                              ? Text(
+                                  _getInitials(displayNama),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                  ),
+                                )
+                              : null,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    namaGuru,
+                    displayNama,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
@@ -228,10 +464,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
-  }
-
-  void _navigateToTab(int tabIndex) {
-    widget.onNavigateToTab?.call(tabIndex);
   }
 
   // ─── Helper: Ambil inisial dari nama kelas ────────────────────

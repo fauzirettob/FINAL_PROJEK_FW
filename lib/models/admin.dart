@@ -5,6 +5,7 @@ class Admin {
   final String nama;
   final String email;
   final String role;
+  final String? fotoUrl;
   final DateTime createdAt;
 
   Admin({
@@ -12,6 +13,7 @@ class Admin {
     required this.nama,
     required this.email,
     this.role = 'admin',
+    this.fotoUrl,
     required this.createdAt,
   });
 
@@ -21,6 +23,7 @@ class Admin {
       nama: data['nama'] ?? '',
       email: data['email'] ?? '',
       role: data['role'] ?? 'admin',
+      fotoUrl: data['fotoUrl'],
       createdAt: data['createdAt'] is Timestamp
           ? (data['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
@@ -32,7 +35,19 @@ class Admin {
       'nama': nama,
       'email': email,
       'role': role,
+      'fotoUrl': fotoUrl,
       'createdAt': Timestamp.fromDate(createdAt),
     };
+  }
+
+  Admin copyWith({String? fotoUrl}) {
+    return Admin(
+      id: id,
+      nama: nama,
+      email: email,
+      role: role,
+      fotoUrl: fotoUrl ?? this.fotoUrl,
+      createdAt: createdAt,
+    );
   }
 }

@@ -365,6 +365,18 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  /// Update data guru setelah perubahan profil (misal foto profil)
+  void updateGuru(Guru updated) {
+    _guru = updated;
+    notifyListeners();
+  }
+
+  /// Update data admin setelah perubahan profil (misal foto profil)
+  void updateAdmin(Admin updated) {
+    _admin = updated;
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     // Hapus kredensial admin yang tersimpan di memory
     _adminEmail = null;

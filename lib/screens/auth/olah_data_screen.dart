@@ -7,6 +7,8 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../services/toast_service.dart';
+
 import '../../theme/app_theme.dart';
 import '../../services/firestore_service.dart';
 import '../../models/guru.dart';
@@ -55,16 +57,17 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
     try {
       await _fs.deleteGuru(guru.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Guru ${guru.nama} berhasil dihapus'),
-          backgroundColor: AppColors.success,
-        ),
+      ToastService.show(
+        context,
+        message: 'Guru ${guru.nama} berhasil dihapus',
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal menghapus: $e')),
+      ToastService.show(
+        context,
+        message: 'Gagal menghapus: $e',
+        backgroundColor: Colors.red.shade600,
+        icon: Icons.error_outline,
       );
     }
   }
@@ -77,11 +80,9 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
       if (allData.isEmpty) {
         if (!mounted) return;
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Tidak ada data guru untuk diekspor'),
-            backgroundColor: AppColors.warning,
-          ),
+        ToastService.show(
+          context,
+          message: 'Tidak ada data guru untuk diekspor',
         );
         return;
       }
@@ -126,11 +127,9 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
       if (allData.isEmpty) {
         if (!mounted) return;
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Tidak ada data siswa untuk diekspor'),
-            backgroundColor: AppColors.warning,
-          ),
+        ToastService.show(
+          context,
+          message: 'Tidak ada data siswa untuk diekspor',
         );
         return;
       }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import '../../providers/auth_provider.dart';
+import '../../services/toast_service.dart';
 import '../../theme/app_theme.dart';
 
 class TambahGuruScreen extends StatefulWidget {
@@ -42,22 +43,22 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
     final confirmPassword = _confirmPasswordController.text;
 
     if (nama.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
-      _showSnackBar('Mohon lengkapi semua data', Colors.red);
+      _showToast('Mohon lengkapi semua data', color: Colors.red);
       return;
     }
 
     if (!_isValidEmail(email)) {
-      _showSnackBar('Format email tidak valid', Colors.red);
+      _showToast('Format email tidak valid', color: Colors.red);
       return;
     }
 
     if (password.length < 6) {
-      _showSnackBar('Password minimal 6 karakter', Colors.red);
+      _showToast('Password minimal 6 karakter', color: Colors.red);
       return;
     }
 
     if (password != confirmPassword) {
-      _showSnackBar('Konfirmasi password tidak cocok', Colors.red);
+      _showToast('Konfirmasi password tidak cocok', color: Colors.red);
       return;
     }
 
@@ -86,7 +87,7 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
         // Kembali ke dashboard admin (tab index 0)
         widget.onNavigateToTab?.call(0);
       } else {
-        _showSnackBar('Gagal menambah guru. Kredensial admin tidak tersedia. Silakan login ulang.', Colors.red);
+        _showToast('Gagal menambah guru. Kredensial admin tidak tersedia. Silakan login ulang.', color: Colors.red);
       }
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -104,7 +105,7 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
         default:
           pesan = e.message ?? 'Gagal membuat akun. Coba lagi.';
       }
-      _showSnackBar(pesan, Colors.red);
+      _showToast(pesan, color: Colors.red);
     } on FirebaseException catch (e) {
       if (!mounted) return;
       String pesan;
@@ -113,11 +114,11 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
       } else {
         pesan = 'Error Firestore: ${e.message}';
       }
-      _showSnackBar(pesan, Colors.red);
+      _showToast(pesan, color: Colors.red);
     } catch (e) {
       if (!mounted) return;
       // Jika gagal karena session, arahkan ke login
-      _showSnackBar('Registrasi gagal. Silakan coba lagi.', Colors.red);
+      _showToast('Registrasi gagal. Silakan coba lagi.', color: Colors.red);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -205,9 +206,12 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
     );
   }
 
-  void _showSnackBar(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: color),
+  void _showToast(String message, {Color? color}) {
+    ToastService.show(
+      context,
+      message: message,
+      backgroundColor: color ?? Colors.green.shade600,
+      icon: color != null && color != Colors.green ? Icons.error_outline : Icons.check_circle,
     );
   }
 
