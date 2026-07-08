@@ -1,10 +1,7 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../../services/firestore_service.dart';
-import '../../services/storage_service.dart';
 import '../../services/whatsapp_service.dart';
 import '../../models/absensi.dart';
 import '../../models/siswa.dart';
@@ -20,10 +17,8 @@ class ScanScreen extends StatefulWidget {
 
 class _ScanScreenState extends State<ScanScreen> {
   final _nisController = TextEditingController();
-  final ImagePicker _picker = ImagePicker();
-  File? _capturedImage;
   bool _isProcessing = false;
-  String _selectedStatus = 'hadir';
+  String _selectedStatus = 'alpa';
   final FirestoreService _fs = FirestoreService();
 
   // Filter kelas
@@ -63,26 +58,6 @@ class _ScanScreenState extends State<ScanScreen> {
     super.dispose();
   }
 
-  Future<void> _takePhoto() async {
-    try {
-      final XFile? photo = await _picker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 80,
-        maxWidth: 1024,
-      );
-      if (photo != null) {
-        setState(() {
-          _capturedImage = File(photo.path);
-        });
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal mengambil foto: $e')),
-      );
-    }
-  }
-
   void _setStatus(String status) {
     setState(() => _selectedStatus = status);
   }
@@ -94,13 +69,6 @@ class _ScanScreenState extends State<ScanScreen> {
     if (nis.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Masukkan NIS siswa')),
-      );
-      return;
-    }
-
-    if (_capturedImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ambil foto siswa terlebih dahulu')),
       );
       return;
     }
@@ -149,29 +117,6 @@ class _ScanScreenState extends State<ScanScreen> {
 
       final absensiId = 'abs_${now.millisecondsSinceEpoch}';
 
-      // Upload foto ke Firebase Storage (fallback jika gagal)
-      String? fotoUrl;
-      bool fotoGagal = false;
-      try {
-        final storage = StorageService();
-        fotoUrl = await storage.uploadFoto(
-          file: _capturedImage!,
-          absensiId: absensiId,
-        );
-      } catch (e) {
-        fotoGagal = true;
-        debugPrint('Gagal upload foto absensi: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Berhasil,Kami Akan Kirim Kirim Ke WA Orang Tua'),
-              backgroundColor: AppColors.accent,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      }
-
       final absensi = Absensi(
         id: absensiId,
         siswaId: siswa.id,
@@ -181,7 +126,6 @@ class _ScanScreenState extends State<ScanScreen> {
         status: _selectedStatus,
         jam: DateFormat.Hm().format(now),
         guruId: userId,
-        fotoUrl: fotoUrl,
       );
 
       await _fs.addAbsensi(absensi);
@@ -240,17 +184,6 @@ class _ScanScreenState extends State<ScanScreen> {
                   ),
                 ),
               ),
-              if (fotoGagal) ...[
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.warning.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
-                  ),
-                ),
-              ],
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -294,9 +227,8 @@ class _ScanScreenState extends State<ScanScreen> {
               onPressed: () {
                 Navigator.pop(ctx);
                 setState(() {
-                  _capturedImage = null;
                   _nisController.clear();
-                  _selectedStatus = 'hadir';
+                  _selectedStatus = 'alpa';
                 });
               },
               child: const Text("OK"),
@@ -317,86 +249,58 @@ class _ScanScreenState extends State<ScanScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Absensi Foto")),
+      appBar: AppBar(title: const Text("Absensi Siswa")),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // Camera / Photo Section
-            GestureDetector(
-              onTap: _isProcessing ? null : _takePhoto,
-              child: Container(
-                width: double.infinity,
-                height: 280,
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: _capturedImage != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(23),
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            Image.file(
-                              _capturedImage!,
-                              fit: BoxFit.cover,
-                            ),
-                            Positioned(
-                              top: 12,
-                              right: 12,
-                              child: GestureDetector(
-                                onTap: _isProcessing ? null : _takePhoto,
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black54,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Icon(
-                                    Icons.camera_alt,
-                                    color: Colors.white,
-                                    size: 22,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+            // ── Header ──
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: AppColors.gradientMain,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.person_search_rounded,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Absensi Manual',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      )
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.camera_alt_rounded,
-                              size: 40,
-                              color: AppColors.primary,
-                            ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Masukkan NIS siswa dan pilih status',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.7),
+                            fontSize: 12,
                           ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Ambil Foto Siswa',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.foreground,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Ketuk untuk membuka kamera',
-                            style: TextStyle(color: AppColors.muted, fontSize: 13),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
 
@@ -609,21 +513,21 @@ class _ScanScreenState extends State<ScanScreen> {
               children: [
                 Expanded(
                   child: _StatusButton(
-                    label: "Hadir",
-                    icon: Icons.check_circle,
-                    color: AppColors.success,
-                    isSelected: _selectedStatus == 'hadir',
-                    onTap: _isProcessing ? null : () => _setStatus('hadir'),
+                    label: "Alpa",
+                    icon: Icons.cancel,
+                    color: Colors.red,
+                    isSelected: _selectedStatus == 'alpa',
+                    onTap: _isProcessing ? null : () => _setStatus('alpa'),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: _StatusButton(
-                    label: "Izin",
-                    icon: Icons.event_busy,
-                    color: AppColors.accent,
-                    isSelected: _selectedStatus == 'izin',
-                    onTap: _isProcessing ? null : () => _setStatus('izin'),
+                    label: "Hadir",
+                    icon: Icons.check_circle,
+                    color: AppColors.success,
+                    isSelected: _selectedStatus == 'hadir',
+                    onTap: _isProcessing ? null : () => _setStatus('hadir'),
                   ),
                 ),
               ],
@@ -633,21 +537,21 @@ class _ScanScreenState extends State<ScanScreen> {
               children: [
                 Expanded(
                   child: _StatusButton(
-                    label: "Sakit",
-                    icon: Icons.sick,
-                    color: AppColors.warning,
-                    isSelected: _selectedStatus == 'sakit',
-                    onTap: _isProcessing ? null : () => _setStatus('sakit'),
+                    label: "Izin",
+                    icon: Icons.event_busy,
+                    color: AppColors.accent,
+                    isSelected: _selectedStatus == 'izin',
+                    onTap: _isProcessing ? null : () => _setStatus('izin'),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: _StatusButton(
-                    label: "Alpa",
-                    icon: Icons.cancel,
-                    color: Colors.red,
-                    isSelected: _selectedStatus == 'alpa',
-                    onTap: _isProcessing ? null : () => _setStatus('alpa'),
+                    label: "Sakit",
+                    icon: Icons.sick,
+                    color: AppColors.warning,
+                    isSelected: _selectedStatus == 'sakit',
+                    onTap: _isProcessing ? null : () => _setStatus('sakit'),
                   ),
                 ),
               ],

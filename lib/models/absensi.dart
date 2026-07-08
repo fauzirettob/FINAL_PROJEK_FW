@@ -34,7 +34,7 @@ class Absensi {
       tanggal: data['tanggal'] is Timestamp
           ? (data['tanggal'] as Timestamp).toDate()
           : DateTime.now(),
-      status: data['status'] ?? 'hadir',
+      status: data['status'] ?? 'alpa',
       jam: data['jam'] ?? '',
       dikirim: data['dikirim'] == true,
       guruId: data['guruId'] ?? '',

@@ -13,7 +13,6 @@ void main() {
         'kelas': 'X-A',
         'namaOrtu': 'Bpk. Andi',
         'hpOrtu': '081234567890',
-        'fotoUrl': 'https://example.com/andi.jpg',
         'createdAt': Timestamp.fromDate(now),
       };
 
@@ -25,7 +24,6 @@ void main() {
       expect(siswa.kelas, equals('X-A'));
       expect(siswa.namaOrtu, equals('Bpk. Andi'));
       expect(siswa.hpOrtu, equals('081234567890'));
-      expect(siswa.fotoUrl, equals('https://example.com/andi.jpg'));
       expect(siswa.createdAt, equals(now));
     });
 
@@ -40,25 +38,7 @@ void main() {
       expect(siswa.kelas, equals(''));
       expect(siswa.namaOrtu, equals(''));
       expect(siswa.hpOrtu, equals(''));
-      expect(siswa.fotoUrl, isNull);
       expect(siswa.createdAt, isA<DateTime>());
-    });
-
-    test('data dengan fotoUrl null tetap valid', () {
-      final now = DateTime.now();
-      final data = {
-        'nama': 'Budi',
-        'nis': '2024002',
-        'kelas': 'X-A',
-        'namaOrtu': 'Bpk. Budi',
-        'hpOrtu': '081234567891',
-        'createdAt': Timestamp.fromDate(now),
-      };
-
-      final siswa = Siswa.fromMap(data, 'siswa-3');
-
-      expect(siswa.nama, equals('Budi'));
-      expect(siswa.fotoUrl, isNull);
     });
 
     test('data dengan field string kosong tetap valid', () {
@@ -90,7 +70,6 @@ void main() {
         kelas: 'X-A',
         namaOrtu: 'Bpk. Andi',
         hpOrtu: '081234567890',
-        fotoUrl: 'https://example.com/andi.jpg',
         createdAt: now,
       );
 
@@ -101,26 +80,8 @@ void main() {
       expect(map['kelas'], equals('X-A'));
       expect(map['namaOrtu'], equals('Bpk. Andi'));
       expect(map['hpOrtu'], equals('081234567890'));
-      expect(map['fotoUrl'], equals('https://example.com/andi.jpg'));
       expect(map['createdAt'], isA<Timestamp>());
       expect((map['createdAt'] as Timestamp).toDate(), equals(now));
-    });
-
-    test('toMap tidak menyertakan fotoUrl jika null', () {
-      final now = DateTime.now();
-      final siswa = Siswa(
-        id: 'siswa-2',
-        nama: 'Budi',
-        nis: '2024002',
-        kelas: 'X-A',
-        namaOrtu: 'Bpk. Budi',
-        hpOrtu: '081234567891',
-        createdAt: now,
-      );
-
-      final map = siswa.toMap();
-
-      expect(map['fotoUrl'], isNull);
     });
 
     test('toMap lalu fromMap menghasilkan objek yang setara', () {
@@ -132,7 +93,6 @@ void main() {
         kelas: 'X-A',
         namaOrtu: 'Bpk. Andi',
         hpOrtu: '081234567890',
-        fotoUrl: 'https://example.com/andi.jpg',
         createdAt: now,
       );
 
@@ -144,7 +104,6 @@ void main() {
       expect(restored.kelas, equals(siswa.kelas));
       expect(restored.namaOrtu, equals(siswa.namaOrtu));
       expect(restored.hpOrtu, equals(siswa.hpOrtu));
-      expect(restored.fotoUrl, equals(siswa.fotoUrl));
       expect(restored.createdAt, equals(siswa.createdAt));
     });
   });
@@ -163,7 +122,6 @@ void main() {
       );
 
       expect(siswa.id, equals('siswa-min'));
-      expect(siswa.fotoUrl, isNull);
     });
   });
 }

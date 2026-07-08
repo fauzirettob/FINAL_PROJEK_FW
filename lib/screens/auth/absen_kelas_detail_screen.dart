@@ -37,10 +37,10 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
 
   // ── Status Configurations ──
   static const _statusList = [
+    {'key': 'alpa', 'shortLabel': 'A', 'fullLabel': 'Alpa'},
     {'key': 'hadir', 'shortLabel': 'H', 'fullLabel': 'Hadir'},
     {'key': 'izin', 'shortLabel': 'I', 'fullLabel': 'Izin'},
     {'key': 'sakit', 'shortLabel': 'S', 'fullLabel': 'Sakit'},
-    {'key': 'alpa', 'shortLabel': 'A', 'fullLabel': 'Alpa'},
   ];
 
   Color _statusColor(String key) {
@@ -106,9 +106,9 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
         statusMap[absen.siswaId] = absen.status;
       }
 
-      // Set default status for students without absensi (default: hadir)
+      // Set default status for students without absensi (default: alpa)
       for (final siswa in siswaKelas) {
-        statusMap.putIfAbsent(siswa.id, () => 'hadir');
+        statusMap.putIfAbsent(siswa.id, () => 'alpa');
       }
 
       if (mounted) {
@@ -161,7 +161,7 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
       final batchNew = <Absensi>[];
 
       for (final siswa in _siswaList) {
-        final status = _statusMap[siswa.id] ?? 'hadir';
+        final status = _statusMap[siswa.id] ?? 'alpa';
         final existing = existingMap[siswa.id];
 
         if (existing != null) {
@@ -363,7 +363,7 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
     final updateDikirimOps = <Future<void>>[];
 
     for (final siswa in siswaDenganHp) {
-      final status = _statusMap[siswa.id] ?? 'hadir';
+      final status = _statusMap[siswa.id] ?? 'alpa';
       final statusLabel = _statusLabel(status);
 
       final berhasil = await WhatsAppService.kirimNotifikasiRekapAbsensi(
@@ -691,7 +691,7 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
             itemCount: _siswaList.length,
             itemBuilder: (context, index) {
               final siswa = _siswaList[index];
-              final activeStatus = _statusMap[siswa.id] ?? 'hadir';
+              final activeStatus = _statusMap[siswa.id] ?? 'alpa';
               final statusColor = _statusColor(activeStatus);
 
               return Container(

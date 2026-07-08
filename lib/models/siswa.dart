@@ -7,7 +7,6 @@ class Siswa {
   final String kelas;
   final String namaOrtu;
   final String hpOrtu;
-  final String? fotoUrl;
   final DateTime createdAt;
 
   Siswa({
@@ -17,7 +16,6 @@ class Siswa {
     required this.kelas,
     required this.namaOrtu,
     required this.hpOrtu,
-    this.fotoUrl,
     required this.createdAt,
   });
 
@@ -29,7 +27,6 @@ class Siswa {
       kelas: data['kelas'] ?? '',
       namaOrtu: data['namaOrtu'] ?? '',
       hpOrtu: data['hpOrtu'] ?? '',
-      fotoUrl: data['fotoUrl'],
       createdAt: data['createdAt'] is Timestamp
           ? (data['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
@@ -43,7 +40,6 @@ class Siswa {
       'kelas': kelas,
       'namaOrtu': namaOrtu,
       'hpOrtu': hpOrtu,
-      'fotoUrl': fotoUrl,
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }
