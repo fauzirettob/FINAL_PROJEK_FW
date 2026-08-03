@@ -20,14 +20,14 @@ class _StudentsScreenState extends State<StudentsScreen> {
 
   final _namaController = TextEditingController();
   final _nisController = TextEditingController();
-  final _kelasController = TextEditingController();
+  String? _selectedKelas;
   final _namaOrtuController = TextEditingController();
   final _hpOrtuController = TextEditingController();
 
   bool get _isFormDirty =>
       _namaController.text.isNotEmpty ||
       _nisController.text.isNotEmpty ||
-      _kelasController.text.isNotEmpty ||
+      _selectedKelas != null ||
       _namaOrtuController.text.isNotEmpty ||
       _hpOrtuController.text.isNotEmpty;
 
@@ -35,7 +35,6 @@ class _StudentsScreenState extends State<StudentsScreen> {
   void dispose() {
     _namaController.dispose();
     _nisController.dispose();
-    _kelasController.dispose();
     _namaOrtuController.dispose();
     _hpOrtuController.dispose();
     super.dispose();
@@ -183,9 +182,16 @@ class _StudentsScreenState extends State<StudentsScreen> {
     // Gunakan controller lokal agar tidak mengganggu form tambah
     final namaCtrl = TextEditingController(text: siswa.nama);
     final nisCtrl = TextEditingController(text: siswa.nis);
-    final kelasCtrl = TextEditingController(text: siswa.kelas);
+    String? kelasValue = siswa.kelas;
     final namaOrtuCtrl = TextEditingController(text: siswa.namaOrtu);
     final hpOrtuCtrl = TextEditingController(text: siswa.hpOrtu);
+
+    // Sertakan kelas lama (mungkin di luar daftar) agar tetap bisa dipilih.
+    final kategoriOptions = <String>[
+      ...kategoriKelas,
+      if (siswa.kelas.isNotEmpty && !kategoriKelas.contains(siswa.kelas))
+        siswa.kelas,
+    ];
 
     return showDialog<void>(
       context: context,
@@ -215,7 +221,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
             await fs.updateSiswa(siswa.id, {
               'nama': namaCtrl.text.trim(),
               'nis': nisBaru,
-              'kelas': kelasCtrl.text.trim(),
+              'kelas': kelasValue ?? '',
               'namaOrtu': namaOrtuCtrl.text.trim(),
               'hpOrtu': hpOrtuCtrl.text.trim(),
             });
@@ -335,14 +341,25 @@ class _StudentsScreenState extends State<StudentsScreen> {
                                     },
                                   ),
                                   const SizedBox(height: 12),
-                                  TextFormField(
-                                    controller: kelasCtrl,
+                                  DropdownButtonFormField<String>(
+                                    initialValue: kategoriOptions
+                                            .contains(kelasValue)
+                                        ? kelasValue
+                                        : null,
                                     decoration: const InputDecoration(
-                                      labelText: 'Kelas',
+                                      labelText: 'Kategori',
                                       prefixIcon: Icon(Icons.class_),
                                     ),
-                                    validator: (v) => (v == null || v.trim().isEmpty)
-                                        ? 'Kelas tidak boleh kosong'
+                                    items: kategoriOptions
+                                        .map((k) => DropdownMenuItem(
+                                              value: k,
+                                              child: Text(k),
+                                            ))
+                                        .toList(),
+                                    onChanged: (v) =>
+                                        setDialogState?.call(() => kelasValue = v),
+                                    validator: (v) => (v == null || v.isEmpty)
+                                        ? 'Kategori harus dipilih'
                                         : null,
                                   ),
                                   const SizedBox(height: 12),
@@ -472,7 +489,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
               id: siswaId,
               nama: _namaController.text.trim(),
               nis: _nisController.text.trim(),
-              kelas: _kelasController.text.trim(),
+              kelas: _selectedKelas ?? '',
               namaOrtu: _namaOrtuController.text.trim(),
               hpOrtu: _hpOrtuController.text.trim(),
               createdAt: now,
@@ -498,7 +515,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
             // Reset form
             _namaController.clear();
             _nisController.clear();
-            _kelasController.clear();
+            _selectedKelas = null;
             _namaOrtuController.clear();
             _hpOrtuController.clear();
 
@@ -650,14 +667,22 @@ class _StudentsScreenState extends State<StudentsScreen> {
                                     },
                                   ),
                                   const SizedBox(height: 12),
-                                  TextFormField(
-                                    controller: _kelasController,
+                                  DropdownButtonFormField<String>(
+                                    initialValue: _selectedKelas,
                                     decoration: const InputDecoration(
-                                      labelText: 'Kelas',
+                                      labelText: 'Kategori',
                                       prefixIcon: Icon(Icons.class_),
                                     ),
-                                    validator: (v) => (v == null || v.trim().isEmpty)
-                                        ? 'Kelas tidak boleh kosong'
+                                    items: kategoriKelas
+                                        .map((k) => DropdownMenuItem(
+                                              value: k,
+                                              child: Text(k),
+                                            ))
+                                        .toList(),
+                                    onChanged: (v) =>
+                                        setDialogState?.call(() => _selectedKelas = v),
+                                    validator: (v) => (v == null || v.isEmpty)
+                                        ? 'Kategori harus dipilih'
                                         : null,
                                   ),
                                   const SizedBox(height: 12),

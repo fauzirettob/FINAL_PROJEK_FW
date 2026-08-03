@@ -46,3 +46,9 @@ kotlin {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
+
+// Sembunyikan warning & note dari library pihak ketiga (cloud_firestore dll)
+// yang tidak bisa diperbaiki dan tidak mempengaruhi aplikasi
+tasks.withType<JavaCompile>().configureEach {
+    options.compilerArgs.add("-nowarn")
+}

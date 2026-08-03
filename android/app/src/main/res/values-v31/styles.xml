@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Theme untuk Android 12+ (API 31+) dengan dukungan SplashScreen API -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <!-- Background utama (fallback untuk pre-Android 12) -->
+        <item name="android:windowBackground">@drawable/launch_background</item>
+        <!-- Android 12+: background splash screen -->
+        <item name="android:windowSplashScreenBackground">@color/splash_background</item>
+    </style>
+
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@color/splash_background</item>
+    </style>
+</resources>

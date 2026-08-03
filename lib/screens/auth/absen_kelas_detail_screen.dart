@@ -137,18 +137,18 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
   }
 
   void _setStatus(String siswaId, String status) {
-    if (_isLocked) return;
+    if (_isLocked || _isSendingNotif || _notifikasiSent) return;
     setState(() {
       _statusMap[siswaId] = status;
     });
   }
 
-  Future<void> _simpanAbsensi() async {
-    if (_isSaving) return;
+  Future<bool> _simpanAbsensi({bool showToast = true}) async {
+    if (_isSaving || _isSendingNotif || _notifikasiSent) return false;
     setState(() => _isSaving = true);
 
     try {
-      if (!mounted) return;
+      if (!mounted) return false;
       final auth = context.read<AuthProvider>();
       final guruId = auth.guru?.id ?? auth.admin?.id ?? 'unknown';
       final jam = DateFormat.Hm().format(DateTime.now());
@@ -211,11 +211,14 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
           _existingAbsensi = updatedAbsensi;
           _isSaving = false;
         });
-        ToastService.show(
-          context,
-          message: '✅ Absensi kelas ${widget.kelas} berhasil disimpan',
-        );
+        if (showToast) {
+          ToastService.show(
+            context,
+            message: '✅ Absensi kelas ${widget.kelas} berhasil disimpan',
+          );
+        }
       }
+      return true;
     } catch (e) {
       debugPrint('Gagal menyimpan: $e');
       if (mounted) {
@@ -227,10 +230,12 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
           icon: Icons.error_outline,
         );
       }
+      return false;
     }
   }
 
   Future<void> _kunciAbsensi() async {
+    if (_isSendingNotif || _notifikasiSent) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -350,6 +355,11 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
 
     if (confirmed != true) return;
     if (!mounted) return;
+
+    // Simpan otomatis dulu agar status yang dikirim via WA sesuai dengan
+    // data di Firestore; jika gagal, batalkan pengiriman
+    final tersimpan = await _simpanAbsensi(showToast: false);
+    if (!tersimpan || !mounted) return;
 
     setState(() => _isSendingNotif = true);
 
@@ -525,7 +535,12 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
                 child: SizedBox(
                   height: 44,
                   child: ElevatedButton.icon(
-                    onPressed: _isLocked || _isSaving ? null : _simpanAbsensi,
+                    onPressed: _isLocked ||
+                            _isSaving ||
+                            _isSendingNotif ||
+                            _notifikasiSent
+                        ? null
+                        : _simpanAbsensi,
                     icon: _isSaving
                         ? const SizedBox(
                             width: 16,
@@ -557,7 +572,9 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
                 child: SizedBox(
                   height: 44,
                   child: ElevatedButton.icon(
-                    onPressed: _isLocked ? null : _kunciAbsensi,
+                    onPressed: _isLocked || _isSendingNotif || _notifikasiSent
+                        ? null
+                        : _kunciAbsensi,
                     icon: Icon(
                       _isLocked ? Icons.lock : Icons.lock_open_rounded,
                       size: 18,
@@ -781,7 +798,7 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
                           return Padding(
                             padding: const EdgeInsets.only(left: 4),
                             child: GestureDetector(
-                              onTap: _isLocked
+                              onTap: _isLocked || _isSendingNotif || _notifikasiSent
                                   ? null
                                   : () => _setStatus(siswa.id, key),
                               child: AnimatedContainer(

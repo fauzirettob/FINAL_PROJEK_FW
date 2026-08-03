@@ -81,13 +81,10 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
         _passwordController.clear();
         _confirmPasswordController.clear();
 
-        // Tampilkan dialog sukses
+        // Tampilkan dialog sukses — admin tetap di halaman ini
         await _showSuccessDialog();
-
-        // Kembali ke dashboard admin (tab index 0)
-        widget.onNavigateToTab?.call(0);
       } else {
-        _showToast('Gagal menambah guru. Kredensial admin tidak tersedia. Silakan login ulang.', color: Colors.red);
+        _showToast('Gagal menambah guru. Kredensial admin tidak tersedia. Silakan coba lagi.', color: Colors.red);
       }
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -190,7 +187,7 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                     ),
                     onPressed: () => Navigator.pop(dialogContext),
                     child: const Text(
-                      'Kembali ke Dashboard',
+                      'Tambah Guru Lagi',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 15,
@@ -239,7 +236,7 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Buat akun guru baru. Session admin akan tetap aman dan kembali ke dashboard setelah berhasil.',
+                      'Buat akun guru baru. Setelah berhasil, form akan dikosongkan dan Anda dapat menambah guru lagi.',
                       style: TextStyle(color: AppColors.primary.withValues(alpha: 0.8), fontSize: 12),
                     ),
                   ),

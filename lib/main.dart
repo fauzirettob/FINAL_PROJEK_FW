@@ -10,7 +10,14 @@ import 'screens/auth/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  try {
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    debugPrint('✅ Firebase berhasil diinisialisasi');
+  } catch (e) {
+    // Jangan crash, biarkan app tetap jalan walau Firebase gagal
+    debugPrint('❌ Firebase initializeApp error: $e');
+  }
 
   // App Check dinonaktifkan karena enforcement sudah dimatikan di Firebase Console.
   // Untuk production, aktifkan kembali dengan:
@@ -18,10 +25,20 @@ void main() async {
   //     providerAndroid: const AndroidPlayIntegrityProvider(),
   //   );
 
-  await NotificationScheduler.initialize();
+  try {
+    await NotificationScheduler.initialize();
+    debugPrint('✅ Notifikasi berhasil diinisialisasi');
+  } catch (e) {
+    debugPrint('❌ NotificationScheduler error: $e');
+  }
 
-  // Inisialisasi locale untuk DateFormat (Indonesia)
-  await initializeDateFormatting('id', null);
+  try {
+    // Inisialisasi locale untuk DateFormat (Indonesia)
+    await initializeDateFormatting('id', null);
+    debugPrint('✅ Locale berhasil diinisialisasi');
+  } catch (e) {
+    debugPrint('❌ Locale initialization error: $e');
+  }
 
   runApp(const MyApp());
 }

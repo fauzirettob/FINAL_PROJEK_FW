@@ -271,7 +271,7 @@ class AuthProvider with ChangeNotifier {
 
     try {
       // 1. Buat akun guru (sign-out admin otomatis terjadi di dalam register)
-      await register(email, password, nama, role: 'guru');
+      await register(email, password, nama, role: 'guru', keepAdminSession: true);
 
       // 2. Re-login sebagai admin
       await login(savedAdminEmail, savedAdminPassword, role: 'admin');
@@ -280,6 +280,14 @@ class AuthProvider with ChangeNotifier {
       return true;
     } catch (e) {
       debugPrint('❌ registerGuruByAdmin error: $e');
+      // Coba re-login admin agar session Firebase Auth tetap aktif,
+      // meskipun registrasi guru gagal (misal error Firestore).
+      try {
+        await login(savedAdminEmail, savedAdminPassword, role: 'admin');
+        debugPrint('✅ registerGuruByAdmin: admin session restored after error');
+      } catch (_) {
+        debugPrint('❌ registerGuruByAdmin: gagal restore admin session after error');
+      }
       rethrow; // biarkan caller (TambahGuruScreen) yang handle error spesifik
     } finally {
       _isReLoggingIn = false;
@@ -287,7 +295,7 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> register(String email, String password, String nama,
-      {String role = 'guru'}) async {
+      {String role = 'guru', bool keepAdminSession = false}) async {
     _isRegistering = true;
     UserCredential? credential;
 
@@ -357,11 +365,13 @@ class AuthProvider with ChangeNotifier {
 
     } finally {
       _isRegistering = false;
-      _user = null;
-      _guru = null;
-      _admin = null;
-      _role = null;
-      notifyListeners();
+      if (!keepAdminSession) {
+        _user = null;
+        _guru = null;
+        _admin = null;
+        _role = null;
+        notifyListeners();
+      }
     }
   }
 

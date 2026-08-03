@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
+<!-- Native Android splash screen yang muncul SEBELUM Flutter engine siap -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@android:color/white" />
+    <!-- Background hijau solid, senada dengan custom splash screen Flutter -->
+    <item android:drawable="@color/splash_background" />
 
-    <!-- You can insert your own image assets here -->
+    <!-- NOTE: Untuk menambahkan logo, letakkan file PNG di folder mipmap-* lalu aktifkan baris di bawah -->
     <!-- <item>
         <bitmap
             android:gravity="center"
-            android:src="@mipmap/launch_image" />
+            android:src="@mipmap/ic_launcher" />
     </item> -->
 </layer-list>
