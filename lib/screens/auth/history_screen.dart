@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../theme/app_theme.dart';
 import '../../services/firestore_service.dart';
+import '../../widgets/tilt3d.dart';
 import '../../models/absensi.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -406,13 +407,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
+      child: Tilt3D(
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
           children: [
             // Main row with photo and info
             Padding(
@@ -508,6 +510,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

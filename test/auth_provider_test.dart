@@ -651,7 +651,7 @@ void main() {
       });
 
       await provider.register(
-        'new@school.sch.id', 'password123', 'Guru Baru',
+        'new@school.sch.id', 'password123', 'Guru Baru', nip: '9876543210',
       );
       await Future(() {});
 
@@ -659,7 +659,11 @@ void main() {
       expect(provider.guru, isNull);
 
       verify(mockFirestore.addGuru(argThat(
-        hasProps({'nama': 'Guru Baru', 'email': 'new@school.sch.id'}),
+        hasProps({
+          'nip': '9876543210',
+          'nama': 'Guru Baru',
+          'email': 'new@school.sch.id',
+        }),
       ))).called(1);
       verify(mockAuth.signOut()).called(1);
       expect(notified, isTrue);
@@ -1065,6 +1069,7 @@ class _HasProps extends Matcher {
   bool matches(dynamic item, Map<dynamic, dynamic> matchState) {
     if (item is! Guru) return false;
     return props.entries.every((e) {
+      if (e.key == 'nip') return item.nip == e.value;
       if (e.key == 'nama') return item.nama == e.value;
       if (e.key == 'email') return item.email == e.value;
       if (e.key == 'id') return item.id == e.value;

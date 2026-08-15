@@ -11,6 +11,8 @@ import '../../services/toast_service.dart';
 
 import '../../theme/app_theme.dart';
 import '../../services/firestore_service.dart';
+import '../../widgets/awesome_dialogs.dart';
+import '../../widgets/tilt3d.dart';
 import '../../models/guru.dart';
 import '../../models/siswa.dart';
 
@@ -31,24 +33,15 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
   Future<void> _hapusGuru(Guru guru) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Hapus Guru'),
-        content: Text(
-          'Yakin ingin menghapus akun guru ${guru.nama}?\\n\\n'
-          'Data absensi yang dibuat oleh guru ini tetap tersimpan.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Hapus'),
-          ),
-        ],
+      barrierDismissible: false,
+      builder: (ctx) => AwesomeConfirmDialog(
+        title: 'Hapus Guru',
+        message: 'Yakin ingin menghapus akun guru ${guru.nama}?\n\n'
+            'Data absensi yang dibuat oleh guru ini tetap tersimpan.',
+        icon: Icons.person_off_rounded,
+        color: Colors.red,
+        confirmText: 'Hapus',
+        confirmIcon: Icons.delete_outline,
       ),
     );
 
@@ -88,13 +81,14 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
       }
 
       final rows = <List<dynamic>>[
-        ['No', 'Nama', 'Email', 'Role', 'Tanggal Daftar'],
+        ['No', 'NIP', 'Nama', 'Email', 'Role', 'Tanggal Daftar'],
       ];
 
       for (int i = 0; i < allData.length; i++) {
         final g = allData[i];
         rows.add([
           i + 1,
+          g.nip,
           g.nama,
           g.email,
           g.role,
@@ -174,19 +168,7 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
     return showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: Row(
-          children: [
-            const SizedBox(
-              width: 24, height: 24,
-              child: CircularProgressIndicator(strokeWidth: 2.5),
-            ),
-            const SizedBox(width: 16),
-            Text(message),
-          ],
-        ),
-      ),
+      builder: (ctx) => AwesomeLoadingDialog(message: message),
     );
   }
 
@@ -349,6 +331,7 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
           list = list
               .where((g) =>
                   g.nama.toLowerCase().contains(_searchGuru) ||
+                  g.nip.toLowerCase().contains(_searchGuru) ||
                   g.email.toLowerCase().contains(_searchGuru))
               .toList();
         }
@@ -373,10 +356,11 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
             final guru = list[index];
             final createdAt = DateFormat('dd MMM yyyy').format(guru.createdAt);
 
-            return Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            return Tilt3D(
+              child: Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 child: Row(
                   children: [
                     // Avatar
@@ -397,7 +381,13 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
                             guru.nama,
                             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                           ),
-                          const SizedBox(height: 2),
+                          if (guru.nip.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              'NIP: ${guru.nip}',
+                              style: const TextStyle(color: AppColors.muted, fontSize: 12),
+                            ),
+                          ],
                           Text(
                             guru.email,
                             style: const TextStyle(color: AppColors.muted, fontSize: 12),
@@ -419,6 +409,7 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
                     ),
                   ],
                 ),
+              ),
               ),
             );
           },
@@ -444,14 +435,15 @@ class _MiniStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
+    return Tilt3D(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
         children: [
           Icon(icon, color: color, size: 20),
           const SizedBox(height: 4),
@@ -468,6 +460,7 @@ class _MiniStatCard extends StatelessWidget {
             style: const TextStyle(color: AppColors.muted, fontSize: 10),
           ),
         ],
+        ),
       ),
     );
   }

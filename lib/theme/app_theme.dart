@@ -21,6 +21,37 @@ class AppColors {
   );
 }
 
+/// Pembungkus transisi halaman yang menghormati pengaturan aksesibilitas
+/// "kurangi gerakan" (reduce motion). Saat diaktifkan lewat
+/// [MediaQuery.disableAnimations], halaman berpindah langsung tanpa animasi.
+class _AccessiblePageTransitionsBuilder extends PageTransitionsBuilder {
+  final PageTransitionsBuilder _delegate;
+
+  const _AccessiblePageTransitionsBuilder(this._delegate);
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return child;
+    }
+    return _delegate.buildTransitions(
+      route,
+      context,
+      animation,
+      secondaryAnimation,
+      child,
+    );
+  }
+}
+
+
+
 class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
@@ -46,20 +77,27 @@ class AppTheme {
         ),
         shadowColor: const Color(0x14302941), // 0x14 = ~8% opacity
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: AppColors.card,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: AppColors.muted,
-        type: BottomNavigationBarType.fixed,
-        elevation: 10,
-        selectedLabelStyle: TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 12,
-        ),
-        unselectedLabelStyle: TextStyle(
-          fontWeight: FontWeight.w400,
-          fontSize: 12,
-        ),
+      // Transisi antar halaman yang halus (fade + geser) untuk semua layar.
+      // Membungkus builder agar menghormati pengaturan aksesibilitas
+      // "kurangi gerakan" (reduce motion).
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: _AccessiblePageTransitionsBuilder(
+            FadeForwardsPageTransitionsBuilder(),
+          ),
+          TargetPlatform.iOS: _AccessiblePageTransitionsBuilder(
+            FadeForwardsPageTransitionsBuilder(),
+          ),
+          TargetPlatform.windows: _AccessiblePageTransitionsBuilder(
+            FadeForwardsPageTransitionsBuilder(),
+          ),
+          TargetPlatform.macOS: _AccessiblePageTransitionsBuilder(
+            FadeForwardsPageTransitionsBuilder(),
+          ),
+          TargetPlatform.linux: _AccessiblePageTransitionsBuilder(
+            FadeForwardsPageTransitionsBuilder(),
+          ),
+        },
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -68,7 +106,8 @@ class AppTheme {
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       ),
     );
   }

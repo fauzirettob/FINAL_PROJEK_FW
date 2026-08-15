@@ -4,6 +4,7 @@ import '../../theme/app_theme.dart';
 import '../../services/firestore_service.dart';
 import '../../services/toast_service.dart';
 import '../../services/whatsapp_service.dart';
+import '../../widgets/awesome_dialogs.dart';
 import '../../models/absensi.dart';
 import '../../models/siswa.dart';
 import '../../providers/auth_provider.dart';
@@ -146,89 +147,27 @@ class _ScanScreenState extends State<ScanScreen> {
       }
 
       if (!mounted) return;
-      showDialog(
+      // Popup hasil yang sama dengan layar rekap kelas: centang menggambar
+      // diri + partikel saat sukses, peringatan saat gagal, info saat nomor
+      // HP orang tua belum diisi. barrierDismissible=false memastikan onDone
+      // selalu berjalan (input NIS pasti dibersihkan setelah popup ditutup).
+      await showDialog<void>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
-            children: [
-              Icon(
-                waBerhasil ? Icons.check_circle : Icons.warning_amber_rounded,
-                color: waBerhasil ? AppColors.success : AppColors.warning,
-              ),
-              const SizedBox(width: 8),
-              Text(waBerhasil ? "Berhasil" : "Absen Tersimpan"),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text("Absensi ${siswa.nama} tercatat."),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  statusLabels[_selectedStatus] ?? 'Hadir',
-                  style: const TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(
-                    waBerhasil
-                        ? Icons.check_circle
-                        : waSkipped
-                            ? Icons.info_outline
-                            : Icons.error_outline,
-                    size: 16,
-                    color: waBerhasil
-                        ? AppColors.success
-                        : waSkipped
-                            ? AppColors.muted
-                            : AppColors.warning,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      waBerhasil
-                          ? "Notifikasi WA terkirim ke ${siswa.namaOrtu}."
-                          : waSkipped
-                              ? "Nomor HP orang tua ${siswa.namaOrtu} belum diisi. Isi di menu Data Siswa."
-                              : "Notifikasi WA gagal dikirim. Cek token Fonnte di whatsapp_service.dart.",
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: waBerhasil
-                            ? AppColors.success
-                            : waSkipped
-                                ? AppColors.muted
-                                : AppColors.warning,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                setState(() {
-                  _nisController.clear();
-                  _selectedStatus = 'alpa';
-                });
-              },
-              child: const Text("OK"),
-            ),
-          ],
+        barrierDismissible: false,
+        builder: (ctx) => WhatsAppResultDialog(
+          berhasil: waBerhasil ? 1 : 0,
+          gagal: !waBerhasil && !waSkipped ? 1 : 0,
+          kelas: siswa.kelas,
+          tanggal: DateFormat('dd/MM/yyyy').format(now),
+          namaSiswa: siswa.nama,
+          statusLabel: formatStatusWa(_selectedStatus),
+          waSkipped: waSkipped,
+          onDone: () {
+            if (!mounted) return;
+            _nisController.clear();
+            _selectedStatus = 'alpa';
+            setState(() {});
+          },
         ),
       );
     } catch (e) {

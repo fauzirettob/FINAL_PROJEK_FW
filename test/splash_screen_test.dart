@@ -80,6 +80,54 @@ void main() {
     });
   });
 
+  group('SplashScreen logo', () {
+    testWidgets('menampilkan logo ikon sekolah', (tester) async {
+      await tester.pumpWidget(
+        buildSplashScreen(isAuthenticated: false),
+      );
+
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // Ikon sekolah tampil sebagai logo sederhana
+      expect(find.byIcon(Icons.school_rounded), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+    });
+
+    testWidgets('reduce motion: konten tampil statis tanpa crash',
+        (tester) async {
+      final provider = AuthProvider(
+        auth: mockAuth,
+        firestoreService: mockFirestore,
+      );
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider<AuthProvider>.value(
+          value: provider,
+          child: MaterialApp(
+            home: Builder(
+              builder: (context) => MediaQuery(
+                data:
+                    MediaQuery.of(context).copyWith(disableAnimations: true),
+                child: const SplashScreen(),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // Konten tetap tampil walau semua animasi dimatikan
+      expect(find.byIcon(Icons.school_rounded), findsOneWidget);
+      expect(find.text('Absensi Siswa'), findsOneWidget);
+
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle(const Duration(seconds: 2));
+    });
+  });
+
   group('SplashScreen navigation — tidak terautentikasi', () {
     testWidgets('navigasi ke LoginScreen setelah 2 detik', (tester) async {
       await tester.pumpWidget(

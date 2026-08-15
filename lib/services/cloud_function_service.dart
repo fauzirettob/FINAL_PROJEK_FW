@@ -3,8 +3,8 @@ import 'package:flutter/foundation.dart';
 
 /// Service untuk memanggil Cloud Functions dari Firebase.
 ///
- /// Method [addGuru] membuat akun guru baru via Admin SDK
- /// tanpa mengubah session admin yang sedang login.
+/// Method [addGuru] membuat akun guru baru via Admin SDK
+/// tanpa mengubah session admin yang sedang login.
 class CloudFunctionService {
   final FirebaseFunctions _functions;
 

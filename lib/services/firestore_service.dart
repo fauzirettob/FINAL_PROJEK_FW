@@ -125,12 +125,21 @@ class FirestoreService {
     await _db.collection('admin').doc(id).update(data);
   }
 
+  /// Hapus dokumen admin dan turunkan counter admin.
+  ///
+  /// Urutan operasi dalam batch sengaja dibuat: counter di-update TERLEBIH
+  /// DAHULU, baru dokumen admin dihapus. Aturan `isAdmin()` di Firestore
+  /// mengecek `exists(admin/{uid})`, jadi bila dokumen admin dihapus sebelum
+  /// counter di-update, operasi counter bisa ditolak rules
+  /// (permission-denied) — terutama saat admin menghapus akunnya sendiri.
+  /// Urutan ini aman di semua mode evaluasi rules (state sebelum batch
+  /// maupun evaluasi berurutan).
   Future<void> deleteAdmin(String id) async {
     final batch = _db.batch();
-    batch.delete(_db.collection('admin').doc(id));
     batch.update(_db.collection('_counters').doc('admin_count'), {
       'count': FieldValue.increment(-1),
     });
+    batch.delete(_db.collection('admin').doc(id));
     await batch.commit();
   }
 

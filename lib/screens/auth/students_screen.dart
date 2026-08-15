@@ -7,6 +7,8 @@ import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
 import '../../services/toast_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/awesome_dialogs.dart';
+import '../../widgets/tilt3d.dart';
 
 class StudentsScreen extends StatefulWidget {
   const StudentsScreen({super.key});
@@ -442,7 +444,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
   Future<void> _showTambahSiswaDialog() async {
     final fs = FirestoreService();
 
-    return showDialog<void>(
+    final createdSiswa = await showDialog<Siswa>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) {
@@ -520,11 +522,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
             _hpOrtuController.clear();
 
             if (!dialogContext.mounted) return;
-            Navigator.of(dialogContext).pop();
-            ToastService.show(
-              dialogContext,
-              message: 'Data berhasil disimpan.',
-            );
+            Navigator.of(dialogContext).pop(siswa);
           } catch (e) {
             if (!dialogContext.mounted) return;
             ToastService.show(
@@ -590,25 +588,16 @@ class _StudentsScreenState extends State<StudentsScreen> {
                                 if (_isFormDirty) {
                                   final confirmed = await showDialog<bool>(
                                     context: dialogContext,
-                                    builder: (ctx) => AlertDialog(
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(20),
-                                      ),
-                                      title: const Text('Konfirmasi'),
-                                      content: const Text(
-                                        'Form sudah terisi. Yakin ingin menutup? Data yang belum disimpan akan hilang.',
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () => Navigator.of(ctx).pop(false),
-                                          child: const Text('Lanjutkan Isi'),
-                                        ),
-                                        TextButton(
-                                          onPressed: () => Navigator.of(ctx).pop(true),
-                                          style: TextButton.styleFrom(foregroundColor: Colors.red),
-                                          child: const Text('Tutup'),
-                                        ),
-                                      ],
+                                    builder: (ctx) => AwesomeConfirmDialog(
+                                      title: 'Tutup Form?',
+                                      message: 'Form sudah terisi. Yakin ingin '
+                                          'menutup? Data yang belum disimpan '
+                                          'akan hilang.',
+                                      icon: Icons.close_rounded,
+                                      color: Colors.red,
+                                      cancelText: 'Lanjutkan Isi',
+                                      confirmText: 'Tutup',
+                                      confirmIcon: Icons.close_rounded,
                                     ),
                                   );
                                   if (confirmed == true && dialogContext.mounted) {
@@ -765,6 +754,20 @@ class _StudentsScreenState extends State<StudentsScreen> {
         );
       },
     );
+
+    if (!mounted || createdSiswa == null) return;
+
+    // Popup sukses bergaya popup notifikasi WA setelah data siswa tersimpan.
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AwesomeSuccessDialog(
+        title: 'Siswa Berhasil Ditambahkan',
+        subtitle: '${createdSiswa.nama} (${createdSiswa.nis}) berhasil '
+            'ditambahkan ke kelas ${createdSiswa.kelas}.',
+        confirmText: 'Selesai',
+      ),
+    );
   }
 
   @override
@@ -870,9 +873,13 @@ class _StudentsScreenState extends State<StudentsScreen> {
               GridView.builder(
                 physics: const NeverScrollableScrollPhysics(),
                 shrinkWrap: true,
+                // mainAxisExtent: tinggi sel tetap sehingga konten kartu
+                // (ikon + teks) selalu muat — mencegah RenderFlex overflow
+                // pada layar kecil (childAspectRatio bergantung lebar layar
+                // dan membuat sel terlalu pendek di HP sempit).
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 2,
-                  childAspectRatio: 1.5,
+                  mainAxisExtent: 118,
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
                 ),
@@ -891,9 +898,10 @@ class _StudentsScreenState extends State<StudentsScreen> {
   }
 
   Widget _buildKelasCard(String kelas, int siswaCount) {
-    return GestureDetector(
-      onTap: () => _showSiswaPerKelas(kelas),
-      child: Container(
+    return Tilt3D(
+      child: GestureDetector(
+        onTap: () => _showSiswaPerKelas(kelas),
+        child: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
@@ -907,32 +915,37 @@ class _StudentsScreenState extends State<StudentsScreen> {
           border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.class_rounded, color: AppColors.primary, size: 22),
+                child: const Icon(Icons.class_rounded, color: AppColors.primary, size: 20),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text(
                 kelas,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.foreground),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.foreground),
               ),
               const SizedBox(height: 2),
               Text(
                 '$siswaCount siswa',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 12, color: AppColors.muted),
               ),
             ],
           ),
+        ),
         ),
       ),
     );

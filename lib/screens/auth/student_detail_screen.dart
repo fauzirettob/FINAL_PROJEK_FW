@@ -5,6 +5,7 @@ import '../../services/toast_service.dart';
 
 import '../../theme/app_theme.dart';
 import '../../services/firestore_service.dart';
+import '../../widgets/tilt3d.dart';
 import '../../models/siswa.dart';
 import '../../models/absensi.dart';
 import 'photo_gallery_screen.dart';
@@ -698,13 +699,14 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Padding(
+      child: Tilt3D(
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
@@ -795,6 +797,7 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );

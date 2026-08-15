@@ -5,6 +5,8 @@ import '../../theme/app_theme.dart';
 import '../../services/firestore_service.dart';
 import '../../services/toast_service.dart';
 import '../../services/whatsapp_service.dart';
+import '../../widgets/awesome_dialogs.dart';
+import '../../widgets/tilt3d.dart';
 import '../../models/siswa.dart';
 import '../../models/absensi.dart';
 import '../../providers/auth_provider.dart';
@@ -238,37 +240,15 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
     if (_isSendingNotif || _notifikasiSent) return;
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(Icons.lock_rounded, color: AppColors.warning),
-            const SizedBox(width: 8),
-            const Text('Kunci Absensi'),
-          ],
-        ),
-        content: Text(
-          'Setelah dikunci, absensi kelas ${widget.kelas} untuk hari ini '
-          'tidak dapat diubah lagi.\n\nLanjutkan?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.pop(ctx, true),
-            icon: const Icon(Icons.lock, size: 18),
-            label: const Text('Kunci'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.warning,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ],
+      barrierDismissible: false,
+      builder: (ctx) => AwesomeConfirmDialog(
+        title: 'Kunci Absensi',
+        message: 'Setelah dikunci, absensi kelas ${widget.kelas} untuk hari '
+            'ini tidak dapat diubah lagi.\n\nLanjutkan?',
+        icon: Icons.lock_rounded,
+        color: AppColors.warning,
+        confirmText: 'Kunci',
+        confirmIcon: Icons.lock,
       ),
     );
 
@@ -316,40 +296,22 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
       return;
     }
 
+    final todayStr = DateFormat('dd/MM/yyyy').format(widget.tanggal);
+    final namaContoh = siswaDenganHp.first.nama;
+    final statusContoh = _statusMap[siswaDenganHp.first.id] ?? 'alpa';
+
+    // Popup konfirmasi kirim WA yang informatif: header gradien WA,
+    // pratinjau pesan, dan jumlah penerima.
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(Icons.send_to_mobile, color: AppColors.whatsapp),
-            const SizedBox(width: 8),
-            const Text('Kirim Notifikasi'),
-          ],
-        ),
-        content: Text(
-          'Kirim notifikasi absensi ke ${siswaDenganHp.length} orang tua '
-          'siswa kelas ${widget.kelas} via WhatsApp?\n\n'
-          'Notifikasi hanya dikirim SEKALI untuk kelas ini.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.pop(ctx, true),
-            icon: const Icon(Icons.send, size: 18),
-            label: const Text('Kirim'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.whatsapp,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
-        ],
+      barrierDismissible: false,
+      builder: (ctx) => WhatsAppConfirmDialog(
+        jumlahOrangTua: siswaDenganHp.length,
+        totalSiswa: _siswaList.length,
+        kelas: widget.kelas,
+        tanggal: todayStr,
+        namaContoh: namaContoh,
+        statusContoh: statusContoh,
       ),
     );
 
@@ -365,7 +327,6 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
 
     int terkirim = 0;
     int gagal = 0;
-    final todayStr = DateFormat('dd/MM/yyyy').format(widget.tanggal);
 
     final updateDikirimOps = <Future<void>>[];
 
@@ -406,39 +367,15 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
       _notifikasiSent = true;
     });
 
-    showDialog(
+    // Popup hasil kirim yang meriah: centang menggambar diri, partikel
+    // perayaan, dan statistik berhasil/gagal dengan animasi count-up.
+    await showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(
-              gagal == 0 ? Icons.check_circle : Icons.warning_amber_rounded,
-              color: gagal == 0 ? AppColors.success : AppColors.warning,
-            ),
-            const SizedBox(width: 8),
-            Text(gagal == 0 ? 'Terkirim' : 'Selesai'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('✅ Berhasil: $terkirim'),
-            if (gagal > 0) Text('❌ Gagal: $gagal'),
-            const SizedBox(height: 8),
-            Text(
-              'Notifikasi telah dikirim ke orang tua siswa.',
-              style: const TextStyle(fontSize: 13, color: AppColors.muted),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('OK'),
-          ),
-        ],
+      builder: (ctx) => WhatsAppResultDialog(
+        berhasil: terkirim,
+        gagal: gagal,
+        kelas: widget.kelas,
+        tanggal: todayStr,
       ),
     );
   }
@@ -597,14 +534,17 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              // Notification button
+              // Notification button (tilt 3D mengikuti kursor)
               Expanded(
                 child: SizedBox(
                   height: 44,
-                  child: ElevatedButton.icon(
-                    onPressed: _isSendingNotif || _notifikasiSent
-                        ? null
-                        : _kirimNotifikasi,
+                  child: Tilt3D(
+                    maxTilt: 8,
+                    enableHover: !_isSendingNotif && !_notifikasiSent,
+                    child: ElevatedButton.icon(
+                      onPressed: _isSendingNotif || _notifikasiSent
+                          ? null
+                          : _kirimNotifikasi,
                     icon: _isSendingNotif
                         ? const SizedBox(
                             width: 16,
@@ -639,6 +579,7 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
+                    ),
                     ),
                   ),
                 ),

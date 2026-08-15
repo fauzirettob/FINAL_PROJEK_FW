@@ -9,6 +9,8 @@ import 'package:path_provider/path_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../services/firestore_service.dart';
 import '../../services/toast_service.dart';
+import '../../widgets/animations.dart';
+import '../../widgets/tilt3d.dart';
 import '../../models/siswa.dart';
 import '../../models/guru.dart';
 import '../../models/absensi.dart';
@@ -48,6 +50,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return word.substring(0, 2).toUpperCase();
   }
 
+
   // ─── Upload Foto Profil ─────────────────────────────────────
   Future<void> _uploadFotoProfil() async {
     final auth = context.read<AuthProvider>();
@@ -68,25 +71,43 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(width: 40, height: 4,
-                decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2)),
               ),
               const SizedBox(height: 20),
-              const Text('Foto Profil', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.foreground)),
+              const Text('Foto Profil',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: AppColors.foreground)),
               const SizedBox(height: 20),
               ListTile(
-                leading: Container(width: 48, height: 48,
-                  decoration: BoxDecoration(color: AppColors.accent.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(Icons.camera_alt_rounded, color: AppColors.accent),
+                leading: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                      color: AppColors.accent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.camera_alt_rounded,
+                      color: AppColors.accent),
                 ),
                 title: const Text('Ambil Foto'),
                 subtitle: const Text('Gunakan kamera'),
                 onTap: () => Navigator.pop(ctx, 'camera'),
               ),
               ListTile(
-                leading: Container(width: 48, height: 48,
-                  decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(Icons.photo_library_rounded, color: AppColors.primary),
+                leading: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.photo_library_rounded,
+                      color: AppColors.primary),
                 ),
                 title: const Text('Pilih dari Galeri'),
                 subtitle: const Text('Ambil dari penyimpanan'),
@@ -95,9 +116,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               if (existingFotoUrl != null && existingFotoUrl.isNotEmpty) ...[
                 const Divider(height: 1),
                 ListTile(
-                  leading: Container(width: 48, height: 48,
-                    decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-                    child: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                  leading: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12)),
+                    child: const Icon(Icons.delete_outline_rounded,
+                        color: Colors.red),
                   ),
                   title: const Text('Hapus Foto'),
                   subtitle: const Text('Kembali ke inisial'),
@@ -111,11 +137,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
 
     if (source == null || !mounted) return;
-    if (source == 'delete') { await _hapusFotoProfil(); return; }
+    if (source == 'delete') {
+      await _hapusFotoProfil();
+      return;
+    }
 
     try {
-      final imageSource = source == 'camera' ? ImageSource.camera : ImageSource.gallery;
-      final XFile? picked = await _picker.pickImage(source: imageSource, imageQuality: 80, maxWidth: 512, maxHeight: 512);
+      final imageSource =
+          source == 'camera' ? ImageSource.camera : ImageSource.gallery;
+      final XFile? picked = await _picker.pickImage(
+          source: imageSource, imageQuality: 80, maxWidth: 512, maxHeight: 512);
       if (picked == null || !mounted) return;
 
       ToastService.show(context, message: 'Menyimpan foto...');
@@ -138,7 +169,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ToastService.show(context, message: 'Foto profil berhasil disimpan!');
     } catch (e) {
       if (!mounted) return;
-      ToastService.show(context, message: 'Gagal simpan foto: $e', backgroundColor: Colors.red.shade600, icon: Icons.error_outline);
+      ToastService.show(context,
+          message: 'Gagal simpan foto: $e',
+          backgroundColor: Colors.red.shade600,
+          icon: Icons.error_outline);
     }
   }
 
@@ -162,7 +196,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ToastService.show(context, message: 'Foto profil berhasil dihapus.');
     } catch (e) {
       if (!mounted) return;
-      ToastService.show(context, message: 'Gagal hapus foto: $e', backgroundColor: Colors.red.shade600, icon: Icons.error_outline);
+      ToastService.show(context,
+          message: 'Gagal hapus foto: $e',
+          backgroundColor: Colors.red.shade600,
+          icon: Icons.error_outline);
     }
   }
 
@@ -178,71 +215,84 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // ── Header ──
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: const BoxDecoration(
-                gradient: AppColors.gradientMain,
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(32),
-                  bottomRight: Radius.circular(32),
+            // ── Header (melayang lembut) ──
+            EntranceAnimation(
+              child: FloatAnimation(
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(24),
+                decoration: const BoxDecoration(
+                  gradient: AppColors.gradientMain,
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(32),
+                    bottomRight: Radius.circular(32),
+                  ),
                 ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "$sapaan ☀️",
-                        style: const TextStyle(color: Colors.white70, fontSize: 14),
-                      ),
-                      GestureDetector(
-                        onTap: _uploadFotoProfil,
-                        child: CircleAvatar(
-                          radius: 22,
-                          backgroundColor: Colors.white.withValues(alpha: 0.2),
-                          backgroundImage: admin?.fotoUrl != null && admin!.fotoUrl!.isNotEmpty
-                              ? (admin!.fotoUrl!.startsWith('http')
-                                  ? NetworkImage(admin!.fotoUrl!) as ImageProvider
-                                  : (File(admin!.fotoUrl!).existsSync()
-                                      ? FileImage(File(admin!.fotoUrl!))
-                                      : null))
-                              : null,
-                          child: admin?.fotoUrl == null || admin!.fotoUrl!.isEmpty
-                              ? Text(
-                                  _getInitials(namaAdmin),
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-                                )
-                              : null,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "$sapaan ☀️",
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 14),
                         ),
+                        GestureDetector(
+                          onTap: _uploadFotoProfil,
+                          child: CircleAvatar(
+                            radius: 22,
+                            backgroundColor:
+                                Colors.white.withValues(alpha: 0.2),
+                            backgroundImage: admin?.fotoUrl != null &&
+                                    admin!.fotoUrl!.isNotEmpty
+                                ? (admin!.fotoUrl!.startsWith('http')
+                                    ? NetworkImage(admin!.fotoUrl!)
+                                        as ImageProvider
+                                    : (File(admin!.fotoUrl!).existsSync()
+                                        ? FileImage(File(admin!.fotoUrl!))
+                                        : null))
+                                : null,
+                            child: admin?.fotoUrl == null ||
+                                    admin!.fotoUrl!.isEmpty
+                                ? Text(
+                                    _getInitials(namaAdmin),
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18),
+                                  )
+                                : null,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      namaAdmin,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    namaAdmin,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(8),
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'Administrator',
+                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
                     ),
-                    child: const Text(
-                      'Administrator',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
+                ),
               ),
             ),
 
@@ -259,26 +309,31 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   builder: (context, guruSnapshot) {
                     final totalGuru = guruSnapshot.data?.length ?? 0;
 
-                    return Row(
-                      children: [
-                        Expanded(
-                          child: _StatCard(
-                            icon: Icons.people_alt_rounded,
-                            label: 'Total Siswa',
-                            value: totalSiswa.toString(),
-                            color: AppColors.accent,
+                    return EntranceAnimation(
+                      delay: const Duration(milliseconds: 100),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _StatCard(
+                              icon: Icons.people_alt_rounded,
+                              label: 'Total Siswa',
+                              value: totalSiswa.toString(),
+                              animateValue: totalSiswa,
+                              color: AppColors.accent,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _StatCard(
-                            icon: Icons.person,
-                            label: 'Total Guru',
-                            value: totalGuru.toString(),
-                            color: AppColors.primary,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _StatCard(
+                              icon: Icons.person,
+                              label: 'Total Guru',
+                              value: totalGuru.toString(),
+                              animateValue: totalGuru,
+                              color: AppColors.primary,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     );
                   },
                 );
@@ -288,29 +343,35 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             const SizedBox(height: 12),
 
             StreamBuilder<List<Absensi>>(
-              stream: _fs.getAllAbsensi(),
+              // Total absensi per hari: hanya catatan hari ini,
+              // otomatis kembali 0 setelah 24 jam (hari berganti).
+              stream: _fs.getAbsensiHariIni(DateTime.now()),
               builder: (context, snap) {
-                final totalAbsensi = snap.data?.length ?? 0;
-                return Row(
-                  children: [
-                    Expanded(
-                      child: _StatCard(
-                        icon: Icons.checklist_rounded,
-                        label: 'Total Absensi',
-                        value: totalAbsensi.toString(),
-                        color: AppColors.success,
+                final totalAbsensiHariIni = snap.data?.length ?? 0;
+                return EntranceAnimation(
+                  delay: const Duration(milliseconds: 180),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _StatCard(
+                          icon: Icons.checklist_rounded,
+                          label: 'Absensi Hari Ini',
+                          value: totalAbsensiHariIni.toString(),
+                          animateValue: totalAbsensiHariIni,
+                          color: AppColors.success,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _StatCard(
-                        icon: Icons.calendar_today,
-                        label: DateFormat('dd MMM').format(DateTime.now()),
-                        value: 'Hari Ini',
-                        color: AppColors.warning,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _StatCard(
+                          icon: Icons.calendar_today,
+                          label: DateFormat('dd MMM').format(DateTime.now()),
+                          value: 'Hari Ini',
+                          color: AppColors.warning,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 );
               },
             ),
@@ -318,65 +379,72 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             const SizedBox(height: 24),
 
             // ── Menu Admin ──
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "Menu Admin",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: AppColors.foreground,
-                ),
+            EntranceAnimation(
+              delay: const Duration(milliseconds: 200),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      "Menu Admin",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: AppColors.foreground,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _AdminMenuCard(
+                    icon: Icons.person_add_alt_1,
+                    color: AppColors.primary,
+                    label: "Tambah Data Guru",
+                    subtitle: "Kelola akun guru",
+                    onTap: () => _navigateToTab(1),
+                  ),
+                  const SizedBox(height: 8),
+                  _AdminMenuCard(
+                    icon: Icons.people,
+                    color: AppColors.accent,
+                    label: "Tambah Data Siswa",
+                    subtitle: "Kelola data siswa untuk absensi",
+                    onTap: () => _navigateToTab(2),
+                  ),
+                  const SizedBox(height: 8),
+                  _AdminMenuCard(
+                    icon: Icons.table_chart_rounded,
+                    color: const Color(0xFF8B5CF6),
+                    label: "Rekap Absensi",
+                    subtitle: "Lihat rekap per kelas & tanggal",
+                    onTap: _openRekapAbsensi,
+                  ),
+                  const SizedBox(height: 8),
+                  _AdminMenuCard(
+                    icon: Icons.manage_search,
+                    color: AppColors.warning,
+                    label: "Olah Data",
+                    subtitle: "Kelola data aplikasi",
+                    onTap: () => _navigateToTab(3),
+                  ),
+                  const SizedBox(height: 8),
+                  _AdminMenuCard(
+                    icon: Icons.admin_panel_settings,
+                    color: Colors.deepOrange,
+                    label: "Kelola Admin",
+                    subtitle: "Lihat & kelola admin lain",
+                    onTap: () => _openManageAdmin(),
+                  ),
+                  const SizedBox(height: 8),
+                  _AdminMenuCard(
+                    icon: Icons.person,
+                    color: Colors.deepPurple,
+                    label: "Profil",
+                    subtitle: "Lihat informasi akun",
+                    onTap: () => _navigateToTab(4),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 12),
-
-            _AdminMenuCard(
-              icon: Icons.person_add_alt_1,
-              color: AppColors.primary,
-              label: "Tambah Data Guru",
-              subtitle: "Kelola akun guru",
-              onTap: () => _navigateToTab(1),
-            ),
-            const SizedBox(height: 8),
-            _AdminMenuCard(
-              icon: Icons.people,
-              color: AppColors.accent,
-              label: "Tambah Data Siswa",
-              subtitle: "Kelola data siswa untuk absensi",
-              onTap: () => _navigateToTab(2),
-            ),
-            const SizedBox(height: 8),
-            _AdminMenuCard(
-              icon: Icons.table_chart_rounded,
-              color: const Color(0xFF8B5CF6),
-              label: "Rekap Absensi",
-              subtitle: "Lihat rekap per kelas & tanggal",
-              onTap: _openRekapAbsensi,
-            ),
-            const SizedBox(height: 8),
-            _AdminMenuCard(
-              icon: Icons.manage_search,
-              color: AppColors.warning,
-              label: "Olah Data",
-              subtitle: "Kelola data aplikasi",
-              onTap: () => _navigateToTab(3),
-            ),
-            const SizedBox(height: 8),
-            _AdminMenuCard(
-              icon: Icons.admin_panel_settings,
-              color: Colors.deepOrange,
-              label: "Kelola Admin",
-              subtitle: "Lihat & kelola admin lain",
-              onTap: () => _openManageAdmin(),
-            ),
-            const SizedBox(height: 8),
-            _AdminMenuCard(
-              icon: Icons.person,
-              color: Colors.deepPurple,
-              label: "Profil",
-              subtitle: "Lihat informasi akun",
-              onTap: () => _navigateToTab(4),
             ),
           ],
         ),
@@ -412,56 +480,71 @@ class _StatCard extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
+  final int? animateValue;
   final Color color;
 
   const _StatCard({
     required this.icon,
     required this.label,
     required this.value,
+    this.animateValue,
     required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+    return Tilt3D(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 22),
             ),
-            child: Icon(icon, color: color, size: 22),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: color,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (animateValue != null)
+                    CountUpNumber(
+                      value: animateValue!,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    )
+                  else
+                    Text(
+                      value,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
+                  Text(
+                    label,
+                    style:
+                        const TextStyle(color: AppColors.muted, fontSize: 11),
                   ),
-                ),
-                Text(
-                  label,
-                  style: const TextStyle(color: AppColors.muted, fontSize: 11),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -484,50 +567,53 @@ class _AdminMenuCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(14),
+    return Tilt3D(
+      child: PressableScale(
+        onTap: onTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: color, size: 28),
               ),
-              child: Icon(icon, color: color, size: 28),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                      color: AppColors.foreground,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                        color: AppColors.foreground,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(color: AppColors.muted, fontSize: 12),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                          color: AppColors.muted, fontSize: 12),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const Icon(Icons.chevron_right, color: AppColors.muted),
-          ],
+              const Icon(Icons.chevron_right, color: AppColors.muted),
+            ],
+          ),
         ),
       ),
     );

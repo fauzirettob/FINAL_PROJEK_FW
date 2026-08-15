@@ -4,10 +4,10 @@
     <!-- Background hijau solid, senada dengan custom splash screen Flutter -->
     <item android:drawable="@color/splash_background" />
 
-    <!-- NOTE: Untuk menambahkan logo, letakkan file PNG di folder mipmap-* lalu aktifkan baris di bawah -->
-    <!-- <item>
+    <!-- Logo sekolah putih di tengah (splash_logo.png di folder mipmap-*) -->
+    <item>
         <bitmap
             android:gravity="center"
-            android:src="@mipmap/ic_launcher" />
-    </item> -->
+            android:src="@mipmap/splash_logo" />
+    </item>
 </layer-list>

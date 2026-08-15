@@ -11,6 +11,8 @@ import '../../services/notification_scheduler.dart';
 import '../../services/firestore_service.dart';
 import '../../services/toast_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/awesome_dialogs.dart';
+import '../../widgets/tilt3d.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -833,27 +835,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _confirmLogout(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Konfirmasi'),
-        content: const Text('Apakah Anda yakin ingin keluar?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text('Keluar'),
-          ),
-        ],
+      barrierDismissible: false,
+      builder: (ctx) => AwesomeConfirmDialog(
+        title: 'Keluar',
+        message: 'Apakah Anda yakin ingin keluar dari aplikasi?',
+        icon: Icons.logout_rounded,
+        color: Colors.red,
+        confirmText: 'Keluar',
+        confirmIcon: Icons.logout_rounded,
       ),
     );
 
@@ -931,15 +920,16 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
+    return Tilt3D(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
         children: [
           Container(
             width: 44,
@@ -975,6 +965,7 @@ class _InfoCard extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }

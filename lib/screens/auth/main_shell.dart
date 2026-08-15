@@ -1,10 +1,12 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
 import '../../services/toast_service.dart';
+import '../../widgets/floating_nav_bar.dart';
 import 'home_screen.dart';
 import 'absen_kelas_screen.dart';
 import 'students_screen.dart';
@@ -190,48 +192,41 @@ class _MainShellState extends State<MainShell> {
 
   Widget _buildGuruShell() {
     final screens = <Widget>[
-      HomeScreen(onNavigateToTab: switchToTab, firestoreService: widget.firestoreService),
+      HomeScreen(
+          onNavigateToTab: switchToTab,
+          firestoreService: widget.firestoreService),
       const AbsenKelasScreen(),
       const RekapAbsensiScreen(),
       const ProfileScreen(),
     ];
 
     return Scaffold(
-      body: screens[_currentIndex],
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
-              label: "Beranda",
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.edit_note_outlined),
-              activeIcon: Icon(Icons.edit_note),
-              label: "Absen Kelas",
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.table_chart_outlined),
-              activeIcon: Icon(Icons.table_chart),
-              label: "Rekap",
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
-              label: "Profil",
-            ),
-          ],
-        ),
+      body: _buildAnimatedTabBody(screens),
+      bottomNavigationBar: FloatingNavBar(
+        currentIndex: _currentIndex,
+        onTap: (index) => setState(() => _currentIndex = index),
+        items: const [
+          FloatingNavItem(
+            icon: Icons.home_outlined,
+            activeIcon: Icons.home,
+            label: "Beranda",
+          ),
+          FloatingNavItem(
+            icon: Icons.edit_note_outlined,
+            activeIcon: Icons.edit_note,
+            label: "Absen Kelas",
+          ),
+          FloatingNavItem(
+            icon: Icons.table_chart_outlined,
+            activeIcon: Icons.table_chart,
+            label: "Rekap",
+          ),
+          FloatingNavItem(
+            icon: Icons.person_outline,
+            activeIcon: Icons.person,
+            label: "Profil",
+          ),
+        ],
       ),
     );
   }
@@ -246,46 +241,37 @@ class _MainShellState extends State<MainShell> {
     ];
 
     return Scaffold(
-      body: screens[_currentIndex],
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10),
-          ],
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
-          type: BottomNavigationBarType.fixed,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_outlined),
-              activeIcon: Icon(Icons.dashboard),
-              label: "Beranda",
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_add_alt_1_outlined),
-              activeIcon: Icon(Icons.person_add_alt_1),
-              label: "Tambah Guru",
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.people_outline),
-              activeIcon: Icon(Icons.people),
-              label: "Data Siswa",
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.manage_search_outlined),
-              activeIcon: Icon(Icons.manage_search),
-              label: "Olah Data",
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
-              label: "Profil",
-            ),
-          ],
-        ),
+      body: _buildAnimatedTabBody(screens),
+      bottomNavigationBar: FloatingNavBar(
+        currentIndex: _currentIndex,
+        onTap: (index) => setState(() => _currentIndex = index),
+        items: const [
+          FloatingNavItem(
+            icon: Icons.dashboard_outlined,
+            activeIcon: Icons.dashboard,
+            label: "Beranda",
+          ),
+          FloatingNavItem(
+            icon: Icons.person_add_alt_1_outlined,
+            activeIcon: Icons.person_add_alt_1,
+            label: "Tambah Guru",
+          ),
+          FloatingNavItem(
+            icon: Icons.people_outline,
+            activeIcon: Icons.people,
+            label: "Data Siswa",
+          ),
+          FloatingNavItem(
+            icon: Icons.manage_search_outlined,
+            activeIcon: Icons.manage_search,
+            label: "Olah Data",
+          ),
+          FloatingNavItem(
+            icon: Icons.person_outline,
+            activeIcon: Icons.person,
+            label: "Profil",
+          ),
+        ],
       ),
     );
   }
@@ -296,5 +282,33 @@ class _MainShellState extends State<MainShell> {
     if (index >= 0 && index <= maxIndex) {
       setState(() => _currentIndex = index);
     }
+  }
+
+  /// Isi tab dengan transisi halus (fade + geser tipis) saat pindah tab.
+  /// Menghormati pengaturan aksesibilitas "kurangi gerakan" (reduce motion).
+  Widget _buildAnimatedTabBody(List<Widget> screens) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    return AnimatedSwitcher(
+      duration:
+          reduceMotion ? Duration.zero : const Duration(milliseconds: 280),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.04, 0),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        );
+      },
+      child: KeyedSubtree(
+        key: ValueKey<int>(_currentIndex),
+        child: screens[_currentIndex],
+      ),
+    );
   }
 }

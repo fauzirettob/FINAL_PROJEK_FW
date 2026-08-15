@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/firestore_service.dart';
 import '../../services/toast_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/tilt3d.dart';
 import 'register_screen.dart';
 import 'main_shell.dart';
 
@@ -38,17 +39,20 @@ class _LoginScreenState extends State<LoginScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const SizedBox(height: 60),
-              // Logo / Title
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.school_rounded,
-                  size: 48,
-                  color: AppColors.primary,
+              // Logo / Title (tilt 3D mengikuti kursor)
+              Tilt3D(
+                maxTilt: 10,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.school_rounded,
+                    size: 48,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -177,11 +181,14 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 32),
 
-              // ── Login Button ──
+              // ── Login Button (tilt 3D mengikuti kursor) ──
               SizedBox(
                 width: double.infinity,
                 height: 50,
-                child: ElevatedButton(
+                child: Tilt3D(
+                  maxTilt: 8,
+                  enableHover: !_isLoading,
+                  child: ElevatedButton(
                   onPressed: _isLoading
                       ? null
                       : () async {
@@ -244,6 +251,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text("Login", style: TextStyle(color: Colors.white)),
+                  ),
                 ),
               ),
 

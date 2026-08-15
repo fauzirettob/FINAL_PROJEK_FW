@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Guru {
   final String id;
+  final String nip;
   final String nama;
   final String email;
   final String role;
@@ -10,6 +11,7 @@ class Guru {
 
   Guru({
     required this.id,
+    this.nip = '',
     required this.nama,
     required this.email,
     this.role = 'guru',
@@ -20,6 +22,7 @@ class Guru {
   factory Guru.fromMap(Map<String, dynamic> data, String id) {
     return Guru(
       id: id,
+      nip: data['nip'] ?? '',
       nama: data['nama'] ?? '',
       email: data['email'] ?? '',
       role: data['role'] ?? 'guru',
@@ -32,6 +35,7 @@ class Guru {
 
   Map<String, dynamic> toMap() {
     return {
+      'nip': nip,
       'nama': nama,
       'email': email,
       'role': role,
@@ -43,6 +47,7 @@ class Guru {
   Guru copyWith({String? fotoUrl}) {
     return Guru(
       id: id,
+      nip: nip,
       nama: nama,
       email: email,
       role: role,

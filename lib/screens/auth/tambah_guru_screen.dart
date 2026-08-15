@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import '../../providers/auth_provider.dart';
 import '../../services/toast_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/awesome_dialogs.dart';
 
 class TambahGuruScreen extends StatefulWidget {
   final void Function(int tabIndex)? onNavigateToTab;
@@ -15,6 +17,7 @@ class TambahGuruScreen extends StatefulWidget {
 }
 
 class _TambahGuruScreenState extends State<TambahGuruScreen> {
+  final _nipController = TextEditingController();
   final _namaController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -25,6 +28,7 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
 
   @override
   void dispose() {
+    _nipController.dispose();
     _namaController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -37,13 +41,19 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
   }
 
   Future<void> _handleTambahGuru() async {
+    final nip = _nipController.text.trim();
     final nama = _namaController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
     final confirmPassword = _confirmPasswordController.text;
 
-    if (nama.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+    if (nip.isEmpty || nama.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
       _showToast('Mohon lengkapi semua data', color: Colors.red);
+      return;
+    }
+
+    if (!RegExp(r'^[0-9]+$').hasMatch(nip)) {
+      _showToast('NIP harus berupa angka', color: Colors.red);
       return;
     }
 
@@ -70,12 +80,13 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
       // 2. Simpan data guru ke Firestore
       // 3. Re-login admin otomatis dengan kredensial yang tersimpan
       final authProvider = context.read<AuthProvider>();
-      final success = await authProvider.registerGuruByAdmin(email, password, nama);
+      final success = await authProvider.registerGuruByAdmin(email, password, nama, nip: nip);
 
       if (!mounted) return;
 
       if (success) {
         // Bersihkan form
+        _nipController.clear();
         _namaController.clear();
         _emailController.clear();
         _passwordController.clear();
@@ -121,85 +132,18 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
     }
   }
 
+  // Popup sukses bergaya popup notifikasi WA: centang menggambar diri +
+  // partikel perayaan + tombol untuk menambah guru lagi.
   Future<void> _showSuccessDialog() async {
     return showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          child: Container(
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Icon sukses
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    color: AppColors.success.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.check_circle_rounded,
-                    size: 44,
-                    color: AppColors.success,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Guru Berhasil Ditambahkan',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.foreground,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Akun guru baru telah berhasil dibuat.\nGuru dapat login menggunakan email yang didaftarkan.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.muted.withValues(alpha: 0.8),
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 28),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      elevation: 0,
-                    ),
-                    onPressed: () => Navigator.pop(dialogContext),
-                    child: const Text(
-                      'Tambah Guru Lagi',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+      builder: (dialogContext) => const AwesomeSuccessDialog(
+        title: 'Guru Berhasil Ditambahkan',
+        subtitle: 'Akun guru baru telah berhasil dibuat.\n'
+            'Guru dapat login menggunakan email yang didaftarkan.',
+        confirmText: 'Tambah Guru Lagi',
+      ),
     );
   }
 
@@ -244,6 +188,23 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
               ),
             ),
             const SizedBox(height: 24),
+
+            // NIP
+            const Text('NIP', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _nipController,
+              keyboardType: TextInputType.number,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(18),
+              ],
+              decoration: const InputDecoration(
+                hintText: 'Masukan NIP guru',
+                prefixIcon: Icon(Icons.badge_outlined),
+              ),
+            ),
+            const SizedBox(height: 20),
 
             // Nama Lengkap
             const Text('Nama Lengkap', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),

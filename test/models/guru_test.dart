@@ -8,6 +8,7 @@ void main() {
     test('memetakan data lengkap dari Firestore ke Guru', () {
       final now = DateTime.now();
       final data = {
+        'nip': '1234567890',
         'nama': 'Bpk. Budi Santoso',
         'email': 'budi@school.sch.id',
         'createdAt': Timestamp.fromDate(now),
@@ -16,6 +17,7 @@ void main() {
       final guru = Guru.fromMap(data, 'guru-1');
 
       expect(guru.id, equals('guru-1'));
+      expect(guru.nip, equals('1234567890'));
       expect(guru.nama, equals('Bpk. Budi Santoso'));
       expect(guru.email, equals('budi@school.sch.id'));
       expect(guru.createdAt, equals(now));
@@ -27,6 +29,7 @@ void main() {
       final guru = Guru.fromMap(data, 'guru-2');
 
       expect(guru.id, equals('guru-2'));
+      expect(guru.nip, equals(''));
       expect(guru.nama, equals(''));
       expect(guru.email, equals(''));
       expect(guru.createdAt, isA<DateTime>());
@@ -52,6 +55,7 @@ void main() {
       final now = DateTime.now();
       final guru = Guru(
         id: 'guru-1',
+        nip: '1234567890',
         nama: 'Bpk. Budi Santoso',
         email: 'budi@school.sch.id',
         createdAt: now,
@@ -59,6 +63,7 @@ void main() {
 
       final map = guru.toMap();
 
+      expect(map['nip'], equals('1234567890'));
       expect(map['nama'], equals('Bpk. Budi Santoso'));
       expect(map['email'], equals('budi@school.sch.id'));
       expect(map['createdAt'], isA<Timestamp>());
@@ -69,6 +74,7 @@ void main() {
       final now = DateTime.now();
       final guru = Guru(
         id: 'guru-1',
+        nip: '1234567890',
         nama: 'Bpk. Budi Santoso',
         email: 'budi@school.sch.id',
         createdAt: now,
@@ -77,6 +83,7 @@ void main() {
       final map = guru.toMap();
       final restored = Guru.fromMap(map, 'guru-1');
 
+      expect(restored.nip, equals(guru.nip));
       expect(restored.nama, equals(guru.nama));
       expect(restored.email, equals(guru.email));
       expect(restored.createdAt, equals(guru.createdAt));
@@ -94,6 +101,7 @@ void main() {
       );
 
       expect(guru.id, equals('guru-min'));
+      expect(guru.nip, equals(''));
       expect(guru.nama, equals('Min'));
       expect(guru.email, equals('min@school.sch.id'));
       expect(guru.createdAt, equals(now));

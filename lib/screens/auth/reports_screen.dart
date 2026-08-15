@@ -9,6 +9,8 @@ import '../../services/firestore_service.dart';
 import '../../services/storage_service.dart';
 import '../../services/toast_service.dart';
 import '../../models/absensi.dart';
+import '../../widgets/awesome_dialogs.dart';
+import '../../widgets/tilt3d.dart';
 import 'history_screen.dart';
 
 class ReportsScreen extends StatefulWidget {
@@ -516,14 +518,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final color = statusColors[a.status] ?? AppColors.muted;
     final label = statusLabels[a.status] ?? a.status;
 
-    final cardContent = Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
+    final cardContent = Tilt3D(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
         children: [
           // Photo
           GestureDetector(
@@ -611,6 +614,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
 
@@ -656,52 +660,34 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Future<bool> _confirmDelete(Absensi a) async {
     final result = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Hapus Absensi'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Apakah Anda yakin ingin menghapus data absensi ini?'),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(12),
+      barrierDismissible: false,
+      builder: (ctx) => AwesomeConfirmDialog(
+        title: 'Hapus Absensi',
+        message: 'Apakah Anda yakin ingin menghapus data absensi ini?',
+        icon: Icons.delete_forever_rounded,
+        color: Colors.red,
+        confirmText: 'Hapus',
+        confirmIcon: Icons.delete_outline,
+        detail: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.red.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, size: 18, color: Colors.red[400]),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${a.siswaNama}\n${a.status} • ${a.jam}',
+                  style: TextStyle(fontSize: 13, color: Colors.red[700]),
+                ),
               ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, size: 18, color: Colors.red[400]),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '${a.siswaNama}\n${a.status} • ${a.jam}',
-                      style: TextStyle(fontSize: 13, color: Colors.red[700]),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text('Hapus'),
-          ),
-        ],
       ),
     );
     return result ?? false;
@@ -984,26 +970,30 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: color,
+    return Tilt3D(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(label, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
-        ],
+            const SizedBox(height: 4),
+            Text(
+                label,
+                style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+          ],
+        ),
       ),
     );
   }

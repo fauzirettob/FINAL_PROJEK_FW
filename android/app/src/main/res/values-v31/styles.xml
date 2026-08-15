@@ -6,6 +6,8 @@
         <item name="android:windowBackground">@drawable/launch_background</item>
         <!-- Android 12+: background splash screen -->
         <item name="android:windowSplashScreenBackground">@color/splash_background</item>
+        <!-- Android 12+: ikon splash (logo sekolah) -->
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/splash_logo</item>
     </style>
 
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">

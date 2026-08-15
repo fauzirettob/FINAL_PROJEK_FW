@@ -4,7 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 class WhatsAppService {
   // GANTI DENGAN TOKEN FONNTE ANDA
-  static const String _token = 'kZjToexgoEcpC8zcrvYn';
+  static const String _token = 'D8YME1ysPub6DFbHe1ty';
   static const String _url = 'https://api.fonnte.com/send';
 
   /// Format nomor HP ke format internasional (62...)

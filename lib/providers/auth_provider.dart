@@ -255,7 +255,8 @@ class AuthProvider with ChangeNotifier {
   /// 3. Re-login sebagai admin menggunakan kredensial yang disimpan
   ///
   /// Mengembalikan `true` jika berhasil, `false` jika gagal.
-  Future<bool> registerGuruByAdmin(String email, String password, String nama) async {
+  Future<bool> registerGuruByAdmin(
+      String email, String password, String nama, {String nip = ''}) async {
     if (_adminEmail == null || _adminPassword == null) {
       debugPrint('❌ registerGuruByAdmin: kredensial admin tidak tersedia');
       return false;
@@ -271,7 +272,8 @@ class AuthProvider with ChangeNotifier {
 
     try {
       // 1. Buat akun guru (sign-out admin otomatis terjadi di dalam register)
-      await register(email, password, nama, role: 'guru', keepAdminSession: true);
+      await register(email, password, nama,
+          role: 'guru', keepAdminSession: true, nip: nip);
 
       // 2. Re-login sebagai admin
       await login(savedAdminEmail, savedAdminPassword, role: 'admin');
@@ -295,7 +297,7 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> register(String email, String password, String nama,
-      {String role = 'guru', bool keepAdminSession = false}) async {
+      {String role = 'guru', bool keepAdminSession = false, String nip = ''}) async {
     _isRegistering = true;
     UserCredential? credential;
 
@@ -328,6 +330,7 @@ class AuthProvider with ChangeNotifier {
         } else {
           final guru = Guru(
             id: uid,
+            nip: nip,
             nama: nama,
             email: email,
             createdAt: DateTime.now(),

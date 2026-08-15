@@ -42,7 +42,11 @@ service cloud.firestore {
     // Jumlah admin dibatasi maksimal 3 via counter doc (_counters/admin_count).
     match /admin/{userId} {
       allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
-      allow delete: if isAdmin();
+      // Admin boleh menghapus admin lain, tetapi TIDAK akunnya sendiri.
+      // Menghapus akun sendiri membuat isAdmin() menjadi false, sehingga
+      // seluruh operasi admin berikutnya (termasuk menghapus admin lain)
+      // akan ditolak dengan permission-denied.
+      allow delete: if isAdmin() && request.auth.uid != userId;
 
       allow create: if isOwner(userId)
         && hasFields(['nama', 'email', 'createdAt'])

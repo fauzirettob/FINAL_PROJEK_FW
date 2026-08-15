@@ -945,6 +945,23 @@ class MockFirestoreService extends _i1.Mock implements _i7.FirestoreService {
       ) as _i5.Future<List<_i9.Guru>>);
 
   @override
+  _i5.Future<void> updateGuru(
+    String? id,
+    Map<String, dynamic>? data,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #updateGuru,
+          [
+            id,
+            data,
+          ],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
   _i5.Future<void> deleteGuru(String? id) => (super.noSuchMethod(
         Invocation.method(
           #deleteGuru,
@@ -986,10 +1003,37 @@ class MockFirestoreService extends _i1.Mock implements _i7.FirestoreService {
       ) as _i5.Future<List<_i10.Admin>>);
 
   @override
+  _i5.Future<void> updateAdmin(
+    String? id,
+    Map<String, dynamic>? data,
+  ) =>
+      (super.noSuchMethod(
+        Invocation.method(
+          #updateAdmin,
+          [
+            id,
+            data,
+          ],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
   _i5.Future<void> deleteAdmin(String? id) => (super.noSuchMethod(
         Invocation.method(
           #deleteAdmin,
           [id],
+        ),
+        returnValue: _i5.Future<void>.value(),
+        returnValueForMissingStub: _i5.Future<void>.value(),
+      ) as _i5.Future<void>);
+
+  @override
+  _i5.Future<void> syncAdminCounter() => (super.noSuchMethod(
+        Invocation.method(
+          #syncAdminCounter,
+          [],
         ),
         returnValue: _i5.Future<void>.value(),
         returnValueForMissingStub: _i5.Future<void>.value(),

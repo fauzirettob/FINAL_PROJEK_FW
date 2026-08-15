@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 import '../../theme/app_theme.dart';
 import '../../services/firestore_service.dart';
 import '../../models/siswa.dart';
+import '../../widgets/animations.dart';
+import '../../widgets/tilt3d.dart';
 import 'absen_kelas_detail_screen.dart';
 
 class AbsenKelasScreen extends StatefulWidget {
@@ -177,9 +179,13 @@ class _AbsenKelasScreenState extends State<AbsenKelasScreen> {
                 GridView.builder(
                   physics: const NeverScrollableScrollPhysics(),
                   shrinkWrap: true,
+                  // mainAxisExtent: tinggi sel tetap sehingga konten kartu
+                  // (ikon + teks) selalu muat — mencegah RenderFlex overflow
+                  // pada layar kecil (childAspectRatio bergantung lebar layar
+                  // dan membuat sel terlalu pendek di HP sempit).
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    childAspectRatio: 1.5,
+                    mainAxisExtent: 118,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
                   ),
@@ -187,10 +193,14 @@ class _AbsenKelasScreenState extends State<AbsenKelasScreen> {
                   itemBuilder: (context, index) {
                     final kelas = kelasList[index];
                     final siswaCount = kelasMap[kelas]!.length;
-                    return _KelasCard(
-                      kelas: kelas,
-                      siswaCount: siswaCount,
-                      onTap: () => _bukaKelas(kelas),
+                    // Animasi masuk bertahap (staggered) saat layar dibuka.
+                    return EntranceAnimation(
+                      delay: Duration(milliseconds: index * 70),
+                      child: _KelasCard(
+                        kelas: kelas,
+                        siswaCount: siswaCount,
+                        onTap: () => _bukaKelas(kelas),
+                      ),
                     );
                   },
                 ),
@@ -228,10 +238,11 @@ class _KelasCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
+    return Tilt3D(
+      child: PressableScale(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
               AppColors.primary.withValues(alpha: 0.1),
@@ -246,14 +257,14 @@ class _KelasCard extends StatelessWidget {
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
@@ -261,14 +272,16 @@ class _KelasCard extends StatelessWidget {
                 child: const Icon(
                   Icons.class_rounded,
                   color: AppColors.primary,
-                  size: 22,
+                  size: 20,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text(
                 kelas,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.bold,
                   color: AppColors.foreground,
                 ),
@@ -276,6 +289,8 @@ class _KelasCard extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 '$siswaCount siswa',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 12,
                   color: AppColors.muted,
@@ -283,6 +298,7 @@ class _KelasCard extends StatelessWidget {
               ),
             ],
           ),
+        ),
         ),
       ),
     );
