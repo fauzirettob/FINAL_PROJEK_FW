@@ -38,6 +38,7 @@ class RekapAbsensiScreen extends StatefulWidget {
 class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
   final FirestoreService _fs = FirestoreService();
   String? _selectedKelas;
+  String? _selectedMapel;
   List<String> _kelasList = [];
   DateTime? _startDate;
   DateTime? _endDate;
@@ -95,13 +96,18 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
     return '${DateFormat('dd/MM').format(_startDate!)} - ${DateFormat('dd/MM/yyyy').format(_endDate!)}';
   }
 
-  /// Filter absensi by kelas (if selected) and date range
+  /// Filter absensi by kelas, mata pelajaran, and date range
   List<Absensi> _applyFilters(List<Absensi> all) {
     var result = all;
 
     // Filter by kelas
     if (_selectedKelas != null) {
       result = result.where((a) => a.kelas == _selectedKelas).toList();
+    }
+
+    // Filter by mata pelajaran
+    if (_selectedMapel != null) {
+      result = result.where((a) => a.mataPelajaran == _selectedMapel).toList();
     }
 
     // Filter by date range
@@ -225,38 +231,83 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
                                     child: Text(k, style: const TextStyle(fontSize: 13)),
                                   )),
                             ],
-                            onChanged: (v) => setState(() => _selectedKelas = v),
+                            onChanged: (v) => setState(() {
+                              _selectedKelas = v;
+                              _selectedMapel = null; // Reset mapel when kelas changes
+                            }),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // ── Tombol Range Tanggal ──
-                    GestureDetector(
-                      onTap: _pickDateRange,
+                    // ── Filter Mata Pelajaran ──
+                    Expanded(
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
                         decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.08),
+                          color: AppColors.background,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                          border: Border.all(color: AppColors.border),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.date_range, size: 16, color: AppColors.primary),
-                            const SizedBox(width: 6),
-                            Text(
-                              _dateRangeLabel.isNotEmpty ? _dateRangeLabel : 'Pilih Tanggal',
-                              style: const TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                              ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String?>(
+                            isExpanded: true,
+                            value: _selectedMapel,
+                            hint: Row(
+                              children: [
+                                Icon(Icons.menu_book_rounded, size: 16, color: AppColors.muted.withValues(alpha: 0.7)),
+                                const SizedBox(width: 6),
+                                const Text('Semua Mapel', style: TextStyle(color: AppColors.muted, fontSize: 13)),
+                              ],
                             ),
-                            const SizedBox(width: 4),
-                            Icon(Icons.arrow_drop_down, size: 18, color: AppColors.primary),
-                          ],
+                            items: [
+                              const DropdownMenuItem(
+                                value: null,
+                                child: Text('Semua Mapel', style: TextStyle(fontSize: 13, color: AppColors.foreground)),
+                              ),
+                              ...daftarMataPelajaran.map((m) => DropdownMenuItem(
+                                    value: m,
+                                    child: Text(m, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis),
+                                  )),
+                            ],
+                            onChanged: (v) => setState(() => _selectedMapel = v),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    // ── Tombol Range Tanggal ──
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _pickDateRange,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.date_range, size: 16, color: AppColors.primary),
+                              const SizedBox(width: 6),
+                              Text(
+                                _dateRangeLabel.isNotEmpty ? _dateRangeLabel : 'Pilih Tanggal',
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(Icons.arrow_drop_down, size: 18, color: AppColors.primary),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -557,6 +608,7 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
                 DataColumn(label: Text('No'), numeric: true),
                 DataColumn(label: Text('Nama Siswa')),
                 DataColumn(label: Text('Kelas')),
+                DataColumn(label: Text('Mapel')),
                 DataColumn(label: Text('Tanggal')),
                 DataColumn(label: Text('Jam')),
                 DataColumn(label: Text('Status')),
@@ -580,6 +632,16 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
                       ),
                     ),
                     DataCell(Text(a.kelas)),
+                    DataCell(
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 100),
+                        child: Text(
+                          a.mataPelajaran.isNotEmpty ? a.mataPelajaran : '-',
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      ),
+                    ),
                     DataCell(Text(DateFormat('dd/MM').format(a.tanggal))),
                     DataCell(Text(a.jam)),
                     DataCell(
@@ -781,7 +843,7 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
       }
 
       final rows = <List<dynamic>>[
-        ['No', 'Nama Siswa', 'Kelas', 'Tanggal', 'Jam', 'Status'],
+        ['No', 'Nama Siswa', 'Kelas', 'Mata Pelajaran', 'Tanggal', 'Jam', 'Status'],
       ];
 
       final sorted = List<Absensi>.from(filtered)
@@ -798,6 +860,7 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
           i + 1,
           a.siswaNama,
           a.kelas,
+          a.mataPelajaran.isNotEmpty ? a.mataPelajaran : '-',
           DateFormat('dd/MM/yyyy').format(a.tanggal),
           a.jam,
           statusLabel,

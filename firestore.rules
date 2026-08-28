@@ -152,6 +152,31 @@ service cloud.firestore {
       allow write: if isAuthenticated();
     }
 
+    // ─── MAPEL LOCKS ───────────────────────────────────────
+    // Digunakan oleh fitur kunci absensi per mata pelajaran
+    match /mapel_locks/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+        && hasFields(['kelas', 'mataPelajaran', 'tanggal', 'isLocked', 'lockedAt', 'lockedBy'])
+        && isString('kelas')
+        && isString('mataPelajaran')
+        && isTimestamp('tanggal')
+        && isString('lockedBy');
+      allow write: if isAuthenticated();
+    }
+
+    // ─── MAPEL NOTIFIKASI ──────────────────────────────────
+    // Digunakan untuk menandai notifikasi per mata pelajaran sudah dikirim
+    match /mapel_notifikasi/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+        && hasFields(['kelas', 'mataPelajaran', 'tanggal', 'dikirim', 'dikirimAt'])
+        && isString('kelas')
+        && isString('mataPelajaran')
+        && isTimestamp('tanggal');
+      allow write: if isAuthenticated();
+    }
+
     // ─── DENY ─────────────────────────────────────────────
     // Tolak semua akses ke koleksi lain yang tidak didefinisikan
     match /{document=**} {

@@ -14,11 +14,13 @@ import '../../providers/auth_provider.dart';
 class AbsenKelasDetailScreen extends StatefulWidget {
   final String kelas;
   final DateTime tanggal;
+  final String? mataPelajaran;
 
   const AbsenKelasDetailScreen({
     super.key,
     required this.kelas,
     required this.tanggal,
+    this.mataPelajaran,
   });
 
   @override
@@ -37,6 +39,8 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
   bool _isSendingNotif = false;
   bool _isLocked = false;
   bool _notifikasiSent = false;
+  bool get _hasMataPelajaran =>
+      widget.mataPelajaran != null && widget.mataPelajaran!.isNotEmpty;
 
   // ── Status Configurations ──
   static const _statusList = [
@@ -95,13 +99,25 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
       final semuaSiswa = await _fs.getAllSiswa();
       final siswaKelas = semuaSiswa.where((s) => s.kelas == widget.kelas).toList();
 
-      final existingAbsensi = await _fs.getAbsensiByKelasAndDate(
-        widget.kelas,
-        widget.tanggal,
-      );
+      final existingAbsensi = _hasMataPelajaran
+          ? await _fs.getAbsensiByKelasAndMapelAndDate(
+              widget.kelas,
+              widget.mataPelajaran!,
+              widget.tanggal,
+            )
+          : await _fs.getAbsensiByKelasAndDate(
+              widget.kelas,
+              widget.tanggal,
+            );
 
-      final isLocked = await _fs.isKelasLocked(widget.kelas, widget.tanggal);
-      final notifSent = await _fs.isNotifikasiKelasSent(widget.kelas, widget.tanggal);
+      final isLocked = _hasMataPelajaran
+          ? await _fs.isMapelLocked(
+              widget.kelas, widget.mataPelajaran!, widget.tanggal)
+          : await _fs.isKelasLocked(widget.kelas, widget.tanggal);
+      final notifSent = _hasMataPelajaran
+          ? await _fs.isNotifikasiMapelSent(
+              widget.kelas, widget.mataPelajaran!, widget.tanggal)
+          : await _fs.isNotifikasiKelasSent(widget.kelas, widget.tanggal);
 
       // Build status map from existing absensi
       final statusMap = <String, String>{};
@@ -177,12 +193,14 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
           }
         } else {
           // Create new record
-          final absensiId = 'abs_${siswa.id}_$dateStr';
+          final mapelSuffix = _hasMataPelajaran ? '_${widget.mataPelajaran}' : '';
+          final absensiId = 'abs_${siswa.id}_${dateStr}$mapelSuffix';
           final absensi = Absensi(
             id: absensiId,
             siswaId: siswa.id,
             siswaNama: siswa.nama,
             kelas: siswa.kelas,
+            mataPelajaran: widget.mataPelajaran ?? '',
             tanggal: widget.tanggal,
             status: status,
             jam: jam,
@@ -203,10 +221,16 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
       }
 
       // Reload data to refresh existing absensi list
-      final updatedAbsensi = await _fs.getAbsensiByKelasAndDate(
-        widget.kelas,
-        widget.tanggal,
-      );
+      final updatedAbsensi = _hasMataPelajaran
+          ? await _fs.getAbsensiByKelasAndMapelAndDate(
+              widget.kelas,
+              widget.mataPelajaran!,
+              widget.tanggal,
+            )
+          : await _fs.getAbsensiByKelasAndDate(
+              widget.kelas,
+              widget.tanggal,
+            );
 
       if (mounted) {
         setState(() {
@@ -259,7 +283,12 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
       final auth = context.read<AuthProvider>();
       final userId = auth.guru?.id ?? auth.admin?.id ?? 'unknown';
 
-      await _fs.lockKelas(widget.kelas, widget.tanggal, userId);
+      if (_hasMataPelajaran) {
+        await _fs.lockMapel(
+          widget.kelas, widget.mataPelajaran!, widget.tanggal, userId);
+      } else {
+        await _fs.lockKelas(widget.kelas, widget.tanggal, userId);
+      }
 
       if (mounted) {
         setState(() => _isLocked = true);
@@ -359,7 +388,12 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
     }
 
     // Mark notification as sent for this class-date
-    await _fs.markNotifikasiKelasSent(widget.kelas, widget.tanggal);
+    if (_hasMataPelajaran) {
+      await _fs.markNotifikasiMapelSent(
+        widget.kelas, widget.mataPelajaran!, widget.tanggal);
+    } else {
+      await _fs.markNotifikasiKelasSent(widget.kelas, widget.tanggal);
+    }
 
     if (!mounted) return;
     setState(() {
@@ -389,9 +423,30 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Kelas ${widget.kelas}',
-              style: const TextStyle(fontSize: 16),
+            Row(
+              children: [
+                Text(
+                  'Kelas ${widget.kelas}',
+                  style: const TextStyle(fontSize: 16),
+                ),
+                if (_hasMataPelajaran) ...[
+                  const Text(
+                    ' • ',
+                    style: TextStyle(fontSize: 16, color: AppColors.muted),
+                  ),
+                  Flexible(
+                    child: Text(
+                      widget.mataPelajaran!,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ],
             ),
             Text(
               dateFormat.format(widget.tanggal),

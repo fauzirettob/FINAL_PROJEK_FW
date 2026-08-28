@@ -11,7 +11,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/toast_service.dart';
 import '../../widgets/animations.dart';
 import '../../widgets/tilt3d.dart';
-import 'absen_kelas_detail_screen.dart';
+import 'absen_kelas_mapel_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final void Function(int tabIndex)? onNavigateToTab;
@@ -677,7 +677,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => AbsenKelasDetailScreen(
+                                    builder: (_) => AbsenKelasMapelScreen(
                                       kelas: kelas,
                                       tanggal: DateTime.now(),
                                     ),

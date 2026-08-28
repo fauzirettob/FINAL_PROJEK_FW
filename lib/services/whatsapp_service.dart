@@ -3,8 +3,8 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
 class WhatsAppService {
-  // GANTI DENGAN TOKEN FONNTE ANDA
-  static const String _token = 'D8YME1ysPub6DFbHe1ty';
+  //TOKEN FONNTE
+  static const String _token = 'p5zd27CtoUsdHhvsjyG1';
   static const String _url = 'https://api.fonnte.com/send';
 
   /// Format nomor HP ke format internasional (62...)
@@ -50,8 +50,7 @@ class WhatsAppService {
   }) async {
     final target = _formatNomor(hpOrtu);
 
-    final pesan =
-        '''
+    final pesan = '''
 *Notifikasi Kehadiran Siswa*
 
 Yth. Orang Tua/Wali,
@@ -64,14 +63,18 @@ Terima kasih.
 Guru SMA AS-SAMA AMBON 
 ''';
 
-    debugPrint('📤 WA kirimNotifikasi → target=$target, nama=$namaSiswa, status=$status');
+    debugPrint(
+        '📤 WA kirimNotifikasi → target=$target, nama=$namaSiswa, status=$status');
 
     try {
       final httpClient = client ?? http.Client();
       try {
         final res = await httpClient.post(
           Uri.parse(_url),
-          headers: {'Authorization': _token},
+          headers: {
+            'Authorization': _token,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
           body: {'target': target, 'message': pesan},
         );
         final bodyStr = res.body;
@@ -110,30 +113,33 @@ Guru SMA AS-SAMA AMBON
 
     final displayStatus = statusLabels[status] ?? status;
 
-    final pesan =
-        '''
-*Rekap Absensi Harian - SAM*
+    final pesan = '''
+*Absensi Harian *
 
 Yth. Orang Tua/Wali,
 
-Berikut rekap kehadiran putra/i Anda hari ini:
+Berikut  kehadiran putra/i Anda hari ini:
 
 👤 Nama: *$namaSiswa*
 📋 Status: $displayStatus
 📅 Tanggal: $tanggal
 
 Terima kasih.
-- Guru SMA AS-SAMA AMBON 
+- Guru SMA AS-SALAM AMBON 
 ''';
 
-    debugPrint('📤 WA kirimNotifikasiRekapAbsensi → target=$target, nama=$namaSiswa, status=$status');
+    debugPrint(
+        '📤 WA kirimNotifikasiRekapAbsensi → target=$target, nama=$namaSiswa, status=$status');
 
     try {
       final httpClient = client ?? http.Client();
       try {
         final res = await httpClient.post(
           Uri.parse(_url),
-          headers: {'Authorization': _token},
+          headers: {
+            'Authorization': _token,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
           body: {'target': target, 'message': pesan},
         );
         final bodyStr = res.body;
@@ -141,7 +147,8 @@ Terima kasih.
           debugPrint('✅ WA Rekap berhasil terkirim ke $target: $bodyStr');
           return true;
         } else {
-          debugPrint('❌ WA Rekap gagal (${res.statusCode}) ke $target: $bodyStr');
+          debugPrint(
+              '❌ WA Rekap gagal (${res.statusCode}) ke $target: $bodyStr');
           return false;
         }
       } finally {

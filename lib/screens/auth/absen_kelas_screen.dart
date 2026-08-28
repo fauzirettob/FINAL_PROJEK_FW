@@ -5,7 +5,7 @@ import '../../services/firestore_service.dart';
 import '../../models/siswa.dart';
 import '../../widgets/animations.dart';
 import '../../widgets/tilt3d.dart';
-import 'absen_kelas_detail_screen.dart';
+import 'absen_kelas_mapel_screen.dart';
 
 class AbsenKelasScreen extends StatefulWidget {
   const AbsenKelasScreen({super.key});
@@ -216,7 +216,7 @@ class _AbsenKelasScreenState extends State<AbsenKelasScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => AbsenKelasDetailScreen(
+        builder: (_) => AbsenKelasMapelScreen(
           kelas: kelas,
           tanggal: _today,
         ),

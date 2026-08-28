@@ -271,6 +271,17 @@ class FirestoreService {
         .toList();
   }
 
+  /// Ambil absensi untuk kelas, mata pelajaran, dan tanggal tertentu.
+  /// Query by kelas+tanggal (sudah punya index), lalu filter mapel di Dart.
+  Future<List<Absensi>> getAbsensiByKelasAndMapelAndDate(
+    String kelas,
+    String mataPelajaran,
+    DateTime date,
+  ) async {
+    final all = await getAbsensiByKelasAndDate(kelas, date);
+    return all.where((a) => a.mataPelajaran == mataPelajaran).toList();
+  }
+
   /// Update field tertentu pada dokumen absensi
   Future<void> updateAbsensi(String id, Map<String, dynamic> data) async {
     await _db.collection('absensi').doc(id).update(data);
@@ -309,6 +320,35 @@ class FirestoreService {
     });
   }
 
+  /// Cek apakah kelas + mata pelajaran sudah dikunci untuk tanggal tertentu
+  Future<bool> isMapelLocked(
+    String kelas,
+    String mataPelajaran,
+    DateTime date,
+  ) async {
+    final docId = '${kelas}_${mataPelajaran}_${DateFormat('yyyy-MM-dd').format(date)}';
+    final doc = await _db.collection('mapel_locks').doc(docId).get();
+    return doc.exists && doc.data()?['isLocked'] == true;
+  }
+
+  /// Kunci kelas + mata pelajaran untuk tanggal tertentu
+  Future<void> lockMapel(
+    String kelas,
+    String mataPelajaran,
+    DateTime date,
+    String lockedBy,
+  ) async {
+    final docId = '${kelas}_${mataPelajaran}_${DateFormat('yyyy-MM-dd').format(date)}';
+    await _db.collection('mapel_locks').doc(docId).set({
+      'kelas': kelas,
+      'mataPelajaran': mataPelajaran,
+      'tanggal': Timestamp.fromDate(date),
+      'isLocked': true,
+      'lockedAt': Timestamp.now(),
+      'lockedBy': lockedBy,
+    });
+  }
+
   /// --- NOTIFIKASI KELAS ---
 
   /// Cek apakah notifikasi sudah pernah dikirim untuk kelas+ tanggal
@@ -323,6 +363,33 @@ class FirestoreService {
     final docId = '${kelas}_${DateFormat('yyyy-MM-dd').format(date)}';
     await _db.collection('kelas_notifikasi').doc(docId).set({
       'kelas': kelas,
+      'tanggal': Timestamp.fromDate(date),
+      'dikirim': true,
+      'dikirimAt': Timestamp.now(),
+    });
+  }
+
+  /// Cek apakah notifikasi sudah pernah dikirim untuk kelas + mapel + tanggal
+  Future<bool> isNotifikasiMapelSent(
+    String kelas,
+    String mataPelajaran,
+    DateTime date,
+  ) async {
+    final docId = '${kelas}_${mataPelajaran}_${DateFormat('yyyy-MM-dd').format(date)}';
+    final doc = await _db.collection('mapel_notifikasi').doc(docId).get();
+    return doc.exists && doc.data()?['dikirim'] == true;
+  }
+
+  /// Tandai notifikasi sudah dikirim untuk kelas + mapel + tanggal
+  Future<void> markNotifikasiMapelSent(
+    String kelas,
+    String mataPelajaran,
+    DateTime date,
+  ) async {
+    final docId = '${kelas}_${mataPelajaran}_${DateFormat('yyyy-MM-dd').format(date)}';
+    await _db.collection('mapel_notifikasi').doc(docId).set({
+      'kelas': kelas,
+      'mataPelajaran': mataPelajaran,
       'tanggal': Timestamp.fromDate(date),
       'dikirim': true,
       'dikirimAt': Timestamp.now(),
