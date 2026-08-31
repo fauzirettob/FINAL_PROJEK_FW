@@ -79,7 +79,7 @@ service cloud.firestore {
         && isString('role')
         && isTimestamp('createdAt');
 
-      allow update: if isOwner(userId)
+      allow update: if (isOwner(userId) || isAdmin())
         && isString('nama')
         && isString('email');
 
@@ -165,6 +165,20 @@ service cloud.firestore {
       allow write: if isAuthenticated();
     }
 
+    // ─── JADWAL PELAJARAN ─────────────────────────────────
+    // Digunakan untuk menyimpan jadwal pelajaran mingguan
+    match /jadwal_pelajaran/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+        && hasFields(['hari', 'jamKe', 'mataPelajaran'])
+        && isString('hari')
+        && isString('mataPelajaran');
+      allow update: if isAuthenticated()
+        && isString('hari')
+        && isString('mataPelajaran');
+      allow delete: if isAuthenticated();
+    }
+
     // ─── MAPEL NOTIFIKASI ──────────────────────────────────
     // Digunakan untuk menandai notifikasi per mata pelajaran sudah dikirim
     match /mapel_notifikasi/{docId} {
@@ -174,6 +188,13 @@ service cloud.firestore {
         && isString('kelas')
         && isString('mataPelajaran')
         && isTimestamp('tanggal');
+      allow write: if isAuthenticated();
+    }
+
+    // ─── GURU PIKET ────────────────────────────────────────
+    // Digunakan untuk menyimpan data guru piket per hari
+    match /guru_piket/{docId} {
+      allow read: if isAuthenticated();
       allow write: if isAuthenticated();
     }
 

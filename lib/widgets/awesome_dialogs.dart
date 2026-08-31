@@ -343,6 +343,9 @@ class WhatsAppConfirmDialog extends StatelessWidget {
   final String tanggal; // format 'dd/MM/yyyy'
   final String namaContoh;
   final String statusContoh; // status mentah: 'hadir', 'izin', dst.
+  final String? mataPelajaran;
+  final String? guruNama;
+  final String? jam;
 
   const WhatsAppConfirmDialog({
     super.key,
@@ -352,18 +355,32 @@ class WhatsAppConfirmDialog extends StatelessWidget {
     required this.tanggal,
     required this.namaContoh,
     required this.statusContoh,
+    this.mataPelajaran,
+    this.guruNama,
+    this.jam,
   });
 
   String get _pesanContoh {
     final status = formatStatusWa(statusContoh);
-    return '*Rekap Absensi Harian - SAM*\n\n'
+    final mapelLine = (mataPelajaran != null && mataPelajaran!.isNotEmpty)
+        ? '📚 Mata Pelajaran: *$mataPelajaran*\n'
+        : '';
+    final guruLine = (guruNama != null && guruNama!.isNotEmpty)
+        ? '👨\u200d🏫 Guru: *$guruNama*\n'
+        : '';
+    final jamLine = (jam != null && jam!.isNotEmpty)
+        ? '⏰ Jam: $jam\n'
+        : '';
+    return '*Absensi Harian SMA AS-SALAM AMBON*\n\n'
         'Yth. Orang Tua/Wali,\n\n'
-        'Berikut rekap kehadiran putra/i Anda hari ini:\n\n'
+        'Berikut kehadiran putra/i Anda hari ini:\n\n'
         '👤 Nama: *$namaContoh*\n'
         '📋 Status: $status\n'
-        '📅 Tanggal: $tanggal\n\n'
+        '$mapelLine$guruLine'
+        '📅 Tanggal: $tanggal\n'
+        '$jamLine\n'
         'Terima kasih.\n'
-        '- Guru SMA AS-SAMA AMBON';
+        '- Guru SMA AS-SALAM AMBON';
   }
 
   @override
@@ -450,7 +467,9 @@ class WhatsAppConfirmDialog extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Rekap Absensi Harian • Kelas $kelas',
+            (mataPelajaran != null && mataPelajaran!.isNotEmpty)
+                ? '$mataPelajaran • Kelas $kelas'
+                : 'Rekap Absensi Harian • Kelas $kelas',
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.white70, fontSize: 12),
           ),
@@ -649,6 +668,8 @@ class WhatsAppResultDialog extends StatelessWidget {
   final String? statusLabel; // label ber-emoji, mis. '✅ Hadir'
   final bool waSkipped; // kirim dilewati karena nomor HP orang tua kosong
   final VoidCallback? onDone; // dipanggil saat popup ditutup
+  final String? mataPelajaran;
+  final String? guruNama;
 
   const WhatsAppResultDialog({
     super.key,
@@ -660,6 +681,8 @@ class WhatsAppResultDialog extends StatelessWidget {
     this.statusLabel,
     this.waSkipped = false,
     this.onDone,
+    this.mataPelajaran,
+    this.guruNama,
   });
 
   /// Semua notifikasi terkirim (dan bukan kasus yang dilewati).
@@ -895,7 +918,7 @@ class WhatsAppResultDialog extends StatelessWidget {
         if (statusLabel != null) _buildStatusChip(),
         const SizedBox(height: 8),
         Text(
-          kelas != null ? 'Kelas $kelas • $tanggal' : tanggal,
+          _buildResultInfo(),
           textAlign: TextAlign.center,
           style: const TextStyle(
             fontSize: 11,
@@ -905,6 +928,18 @@ class WhatsAppResultDialog extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  String _buildResultInfo() {
+    final parts = <String>[];
+    if (mataPelajaran != null && mataPelajaran!.isNotEmpty) {
+      parts.add(mataPelajaran!);
+    }
+    if (kelas != null) {
+      parts.add('Kelas $kelas');
+    }
+    parts.add(tanggal);
+    return parts.join(' • ');
   }
 
   Widget _buildStatusChip() {

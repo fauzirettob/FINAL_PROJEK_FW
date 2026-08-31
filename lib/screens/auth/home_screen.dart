@@ -7,11 +7,11 @@ import '../../services/firestore_service.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../models/absensi.dart';
 import '../../models/siswa.dart';
+import '../../models/jadwal_pelajaran.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/toast_service.dart';
 import '../../widgets/animations.dart';
 import '../../widgets/tilt3d.dart';
-import 'absen_kelas_mapel_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final void Function(int tabIndex)? onNavigateToTab;
@@ -34,6 +34,17 @@ class _HomeScreenState extends State<HomeScreen> {
     if (hour < 15) return 'Selamat Siang';
     if (hour < 18) return 'Selamat Sore';
     return 'Selamat Malam';
+  }
+
+  // Helper: Ambil inisial dari nama
+  String _getInitials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length >= 2) {
+      return parts.take(2).map((p) => p[0].toUpperCase()).join();
+    }
+    final word = parts.isNotEmpty ? parts[0] : '';
+    if (word.length <= 2) return word.toUpperCase();
+    return word.substring(0, 2).toUpperCase();
   }
 
   Future<void> _uploadFotoProfil() async {
@@ -413,7 +424,18 @@ class _HomeScreenState extends State<HomeScreen> {
             StreamBuilder<List<Siswa>>(
               stream: _fs.getSiswaStream(),
               builder: (context, snapshot) {
-                final totalSiswa = snapshot.data?.length ?? 0;
+                final semuaSiswa = snapshot.data ?? [];
+                // Filter siswa berdasarkan kelas guru (admin lihat semua)
+                final List<Siswa> filteredSiswa;
+                if (isAdmin) {
+                  filteredSiswa = semuaSiswa;
+                } else {
+                  final guruKelas = auth.guru?.kelasList ?? [];
+                  filteredSiswa = guruKelas.isNotEmpty
+                      ? semuaSiswa.where((s) => guruKelas.contains(s.kelas)).toList()
+                      : semuaSiswa;
+                }
+                final totalSiswa = filteredSiswa.length;
 
                 return EntranceAnimation(
                   delay: const Duration(milliseconds: 120),
@@ -454,37 +476,91 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const SizedBox(height: 20),
 
-            // ── Rekap Per Kelas ──
+            // ── Guru Piket Hari Ini ──
+            EntranceAnimation(
+              delay: const Duration(milliseconds: 200),
+              child: _buildGuruPiketSection(),
+            ),
+
+            const SizedBox(height: 20),
+
+            // ── Absensi Hari Ini ──
             StreamBuilder<List<Siswa>>(
               stream: _fs.getSiswaStream(),
               builder: (context, siswaSnap) {
-                final semuaSiswa = siswaSnap.data ?? [];
+                final semuaSiswaData = siswaSnap.data ?? [];
+                // Filter siswa berdasarkan kelas guru (admin lihat semua)
+                final List<Siswa> semuaSiswa;
+                if (isAdmin) {
+                  semuaSiswa = semuaSiswaData;
+                } else {
+                  final guruKelas = auth.guru?.kelasList ?? [];
+                  semuaSiswa = guruKelas.isNotEmpty
+                      ? semuaSiswaData.where((s) => guruKelas.contains(s.kelas)).toList()
+                      : semuaSiswaData;
+                }
                 return StreamBuilder<List<Absensi>>(
                   stream: _fs.getAbsensiHariIni(DateTime.now()),
                   builder: (context, absenSnap) {
                     final absensiHariIni = absenSnap.data ?? [];
 
-                    // Kelompokkan siswa per kelas
-                    final kelasMap = <String, List<Siswa>>{};
-                    for (final s in semuaSiswa) {
-                      kelasMap.putIfAbsent(s.kelas, () => []);
-                      kelasMap[s.kelas]!.add(s);
-                    }
-
-                    final kelasList = kelasMap.keys.toList()..sort();
-                    final totalAbsensiHariIni = absensiHariIni.length;
-
-                    // Map siswaId -> status untuk lookup cepat
-                    final statusMap = <String, String>{};
+                    // Map siswaId -> set of statuses untuk lookup cepat.
+                    // Satu siswa bisa punya banyak absensi (per mapel),
+                    // kita ambil status 'terbaik': hadir > izin > sakit > alpa.
+                    final statusPriority = {
+                      'hadir': 0,
+                      'izin': 1,
+                      'sakit': 2,
+                      'alpa': 3,
+                    };
+                    final bestStatusMap = <String, int>{}; // siswaId -> priority
                     for (final a in absensiHariIni) {
-                      statusMap[a.siswaId] = a.status;
+                      final priority = statusPriority[a.status] ?? 4;
+                      final existing = bestStatusMap[a.siswaId];
+                      if (existing == null || priority < existing) {
+                        bestStatusMap[a.siswaId] = priority;
+                      }
                     }
 
-                    return _buildRekapPerKelas(
-                      kelasList: kelasList,
-                      kelasMap: kelasMap,
-                      statusMap: statusMap,
-                      totalAbsensiHariIni: totalAbsensiHariIni,
+                    // Kelompokkan siswa berdasarkan status
+                    final hadirList = <Siswa>[];
+                    final izinList = <Siswa>[];
+                    final sakitList = <Siswa>[];
+                    final alpaList = <Siswa>[];
+                    final belumAbsenList = <Siswa>[];
+
+                    for (final siswa in semuaSiswa) {
+                      final priority = bestStatusMap[siswa.id];
+                      if (priority == null) {
+                        belumAbsenList.add(siswa);
+                        continue;
+                      }
+                      switch (priority) {
+                        case 0:
+                          hadirList.add(siswa);
+                          break;
+                        case 1:
+                          izinList.add(siswa);
+                          break;
+                        case 2:
+                          sakitList.add(siswa);
+                          break;
+                        case 3:
+                          alpaList.add(siswa);
+                          break;
+                        default:
+                          belumAbsenList.add(siswa);
+                      }
+                    }
+
+                    return _buildAbsensiHariIni(
+                      semuaSiswa: semuaSiswa,
+                      hadirList: hadirList,
+                      izinList: izinList,
+                      sakitList: sakitList,
+                      alpaList: alpaList,
+                      belumAbsenList: belumAbsenList,
+                      totalAbsensi: absensiHariIni.length,
                     );
                   },
                 );
@@ -496,56 +572,172 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ─── Helper: Ambil inisial dari nama kelas ────────────────────
-  String _getInitials(String kelas) {
-    final parts = kelas.trim().split(RegExp(r'\s+'));
-    if (parts.length >= 2) {
-      return parts.take(2).map((p) => p[0].toUpperCase()).join();
+  // ─── Load Guru Piket dengan fallback ──────────────────────────
+  Future<List<GuruPiket>> _loadGuruPiket() async {
+    try {
+      final data = await _fs.getGuruPiket();
+      if (data.isEmpty) {
+        // Fallback ke default jika Firestore kosong
+        return guruPiketDefault
+            .map((d) => GuruPiket.fromMap(d))
+            .toList();
+      }
+      return data;
+    } catch (e) {
+      // Fallback ke default jika error
+      return guruPiketDefault
+          .map((d) => GuruPiket.fromMap(d))
+          .toList();
     }
-    // Ambil maks 2 huruf pertama jika 1 kata
-    final word = parts.isNotEmpty ? parts[0] : '';
-    if (word.length <= 2) return word.toUpperCase();
-    return word.substring(0, 2).toUpperCase();
   }
 
-  // ─── Helper: Warna unik per kelas ─────────────────────────────
-  final List<Color> _kelasPalette = const [
-    Color(0xFF6366F1), // Indigo
-    Color(0xFF8B5CF6), // Violet
-    Color(0xFFEC4899), // Pink
-    Color(0xFFF43F5E), // Rose
-    Color(0xFFF97316), // Orange
-    Color(0xFF14B8A6), // Teal
-    Color(0xFF06B6D4), // Cyan
-    Color(0xFF3B82F6), // Blue
-  ];
+  // ─── Guru Piket Hari Ini ──────────────────────────────────────
+  Widget _buildGuruPiketSection() {
+    const hariMap = {
+      1: 'SENIN', 2: 'SELASA', 3: 'RABU', 4: 'KAMIS', 5: 'JUMAT',
+    };
+    final hariIni = hariMap[DateTime.now().weekday] ?? 'SENIN';
 
-  Color _getKelasColor(String kelas) {
-    final hash = kelas.hashCode.abs();
-    return _kelasPalette[hash % _kelasPalette.length];
+    return FutureBuilder<List<GuruPiket>>(
+      future: _loadGuruPiket(),
+      builder: (context, snapshot) {
+        final guruPiket = snapshot.data ?? [];
+        final piketHariIni = guruPiket
+            .where((p) => p.hari.toUpperCase() == hariIni)
+            .toList();
+        final namaPiket = piketHariIni
+            .expand((p) => p.namaGuru)
+            .toList();
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0EA5E9).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.assignment_ind_rounded,
+                        color: Color(0xFF0EA5E9), size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Guru Piket Hari Ini',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: AppColors.foreground,
+                          ),
+                        ),
+                        Text(
+                          hariIni,
+                          style: const TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (namaPiket.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.muted.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Text(
+                    'Tidak ada guru piket hari ini',
+                    style: TextStyle(color: AppColors.muted, fontSize: 13),
+                  ),
+                )
+              else
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: namaPiket.map((nama) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0EA5E9).withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: const Color(0xFF0EA5E9).withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.person_rounded,
+                              size: 16, color: Color(0xFF0EA5E9)),
+                          const SizedBox(width: 6),
+                          Text(
+                            nama,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF0EA5E9),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
-  // ─── Rekap Per Kelas ──────────────────────────────────────────
-  Widget _buildRekapPerKelas({
-    required List<String> kelasList,
-    required Map<String, List<Siswa>> kelasMap,
-    required Map<String, String> statusMap,
-    required int totalAbsensiHariIni,
+  // ─── Absensi Hari Ini ──────────────────────────────────────────
+  Widget _buildAbsensiHariIni({
+    required List<Siswa> semuaSiswa,
+    required List<Siswa> hadirList,
+    required List<Siswa> izinList,
+    required List<Siswa> sakitList,
+    required List<Siswa> alpaList,
+    required List<Siswa> belumAbsenList,
+    required int totalAbsensi,
   }) {
-    if (kelasList.isEmpty) return const SizedBox.shrink();
+    if (semuaSiswa.isEmpty) return const SizedBox.shrink();
+
+    final totalSiswa = semuaSiswa.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Label
+        // Header
         Row(
           children: [
             const Text(
-              'Rekap Per Kelas',
+              'Absensi Hari Ini',
               style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: AppColors.foreground),
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: AppColors.foreground,
+              ),
             ),
             const Spacer(),
             Container(
@@ -555,7 +747,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
-                '$totalAbsensiHariIni absensi hari ini',
+                '$totalAbsensi dari $totalSiswa siswa',
                 style: const TextStyle(
                   color: AppColors.primary,
                   fontSize: 11,
@@ -565,406 +757,356 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        // Info jumlah kelas
+        const SizedBox(height: 12),
+
+        // ── Summary Cards ──
         Row(
           children: [
-            Icon(Icons.class_,
-                size: 14, color: AppColors.muted.withValues(alpha: 0.7)),
-            const SizedBox(width: 4),
-            Text(
-              '${kelasList.length} kelas',
-              style: TextStyle(
-                  color: AppColors.muted.withValues(alpha: 0.7), fontSize: 12),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        // Cards per kelas
-        ...kelasList.asMap().entries.map((entry) {
-          final index = entry.key;
-          final kelas = entry.value;
-          final siswaKelas = kelasMap[kelas] ?? [];
-          final totalSiswa = siswaKelas.length;
-          final hadir =
-              siswaKelas.where((s) => statusMap[s.id] == 'hadir').length;
-          final belumAbsen =
-              siswaKelas.where((s) => !statusMap.containsKey(s.id)).length;
-          final persenHadir = totalSiswa > 0 ? hadir / totalSiswa : 0.0;
-
-          Color progressColor;
-          if (persenHadir >= 0.75) {
-            progressColor = AppColors.success;
-          } else if (persenHadir >= 0.5) {
-            progressColor = AppColors.warning;
-          } else {
-            progressColor = Colors.red;
-          }
-
-          return EntranceAnimation(
-            delay: Duration(milliseconds: index * 60),
-            child: Tilt3D(
-              child: PressableScale(
-                onTap: () => _showDetailSiswaPerKelas(
-                  kelas: kelas,
-                  siswaKelas: siswaKelas,
-                  statusMap: statusMap,
-                ),
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  children: [
-                    // Header kelas
-                    Row(
-                      children: [
-                        // Badge kelas dengan inisial dan warna
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color:
-                                _getKelasColor(kelas).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Center(
-                            child: Text(
-                              _getInitials(kelas),
-                              style: TextStyle(
-                                color: _getKelasColor(kelas),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Kelas $kelas',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                              color: AppColors.foreground,
-                            ),
-                          ),
-                        ),
-                        // Tombol absen cepat dengan warna solid + shadow
-                        Container(
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: _getKelasColor(kelas),
-                            borderRadius: BorderRadius.circular(10),
-                            boxShadow: [
-                              BoxShadow(
-                                color: _getKelasColor(kelas)
-                                    .withValues(alpha: 0.35),
-                                blurRadius: 6,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(10),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => AbsenKelasMapelScreen(
-                                      kelas: kelas,
-                                      tanggal: DateTime.now(),
-                                    ),
-                                  ),
-                                );
-                              },
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 12),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.edit_note_rounded,
-                                        size: 15, color: Colors.white),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      'Absen',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 11,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    // Progress bar
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: LinearProgressIndicator(
-                        value: persenHadir,
-                        backgroundColor:
-                            AppColors.border.withValues(alpha: 0.5),
-                        color: progressColor,
-                        minHeight: 8,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    // Stat row
-                    Row(
-                      children: [
-                        _KelasStatItem(
-                          icon: Icons.check_circle_rounded,
-                          label: 'Hadir',
-                          value: hadir.toString(),
-                          color: AppColors.success,
-                        ),
-                        const SizedBox(width: 8),
-                        _KelasStatItem(
-                          icon: Icons.schedule_rounded,
-                          label: 'Belum Absen',
-                          value: belumAbsen.toString(),
-                          color: AppColors.warning,
-                        ),
-                        const SizedBox(width: 8),
-                        _KelasStatItem(
-                          icon: Icons.people_alt_rounded,
-                          label: 'Total',
-                          value: totalSiswa.toString(),
-                          color: AppColors.accent,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+            Expanded(
+              child: _StatusSummaryCard(
+                icon: Icons.check_circle_rounded,
+                label: 'Hadir',
+                value: hadirList.length,
+                color: AppColors.success,
+                onTap: () => _showDetailAbsensi(
+                  title: 'Hadir',
+                  siswaList: hadirList,
+                  status: 'hadir',
+                  color: AppColors.success,
                 ),
               ),
             ),
-          );
-        }),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _StatusSummaryCard(
+                icon: Icons.event_busy_rounded,
+                label: 'Izin',
+                value: izinList.length,
+                color: AppColors.accent,
+                onTap: () => _showDetailAbsensi(
+                  title: 'Izin',
+                  siswaList: izinList,
+                  status: 'izin',
+                  color: AppColors.accent,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _StatusSummaryCard(
+                icon: Icons.sick_rounded,
+                label: 'Sakit',
+                value: sakitList.length,
+                color: AppColors.warning,
+                onTap: () => _showDetailAbsensi(
+                  title: 'Sakit',
+                  siswaList: sakitList,
+                  status: 'sakit',
+                  color: AppColors.warning,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _StatusSummaryCard(
+                icon: Icons.cancel_rounded,
+                label: 'Alpa',
+                value: alpaList.length,
+                color: Colors.red,
+                onTap: () => _showDetailAbsensi(
+                  title: 'Alpa',
+                  siswaList: alpaList,
+                  status: 'alpa',
+                  color: Colors.red,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: _StatusSummaryCard(
+                icon: Icons.help_outline_rounded,
+                label: 'Belum Absen',
+                value: belumAbsenList.length,
+                color: AppColors.muted,
+                onTap: () => _showDetailAbsensi(
+                  title: 'Belum Absen',
+                  siswaList: belumAbsenList,
+                  status: 'belum',
+                  color: AppColors.muted,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _StatusSummaryCard(
+                icon: Icons.people_alt_rounded,
+                label: 'Total',
+                value: totalSiswa,
+                color: AppColors.primary,
+                onTap: () => _showDetailAbsensi(
+                  title: 'Semua Siswa',
+                  siswaList: semuaSiswa,
+                  status: 'all',
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
 
-  // ─── Detail Siswa Per Kelas (Bottom Sheet) ────────────────────
-  void _showDetailSiswaPerKelas({
-    required String kelas,
-    required List<Siswa> siswaKelas,
-    required Map<String, String> statusMap,
+  // ─── Detail Absensi (Bottom Sheet) ────────────────────────────
+  void _showDetailAbsensi({
+    required String title,
+    required List<Siswa> siswaList,
+    required String status,
+    required Color color,
   }) {
+    // Ambil data absensi hari ini untuk status setiap siswa
+    final absensiStream = _fs.getAbsensiHariIni(DateTime.now());
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        height: MediaQuery.of(ctx).size.height * 0.75,
-        decoration: const BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(24),
-            topRight: Radius.circular(24),
-          ),
-        ),
-        child: Column(
-          children: [
-            // Handle bar
-            Container(
-              margin: const EdgeInsets.only(top: 10),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.border,
-                borderRadius: BorderRadius.circular(2),
+      builder: (ctx) => StreamBuilder<List<Absensi>>(
+        stream: absensiStream,
+        builder: (context, snapshot) {
+          final absensiHariIni = snapshot.data ?? [];
+          final statusMap = <String, String>{};
+          for (final a in absensiHariIni) {
+            statusMap[a.siswaId] = a.status;
+          }
+
+          return Container(
+            height: MediaQuery.of(ctx).size.height * 0.75,
+            decoration: const BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
               ),
             ),
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-              child: Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.class_,
-                        color: AppColors.primary, size: 22),
+            child: Column(
+              children: [
+                // Handle bar
+                Container(
+                  margin: const EdgeInsets.only(top: 10),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          kelas,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                            color: AppColors.foreground,
-                          ),
+                ),
+                // Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        Text(
-                          '${siswaKelas.length} siswa',
-                          style: const TextStyle(
-                              color: AppColors.muted, fontSize: 13),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Close button
-                  GestureDetector(
-                    onTap: () => Navigator.pop(ctx),
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.border.withValues(alpha: 0.5),
-                        shape: BoxShape.circle,
+                        child: Icon(Icons.school, color: color, size: 22),
                       ),
-                      child: const Icon(Icons.close,
-                          size: 18, color: AppColors.muted),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Status summary bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _buildBottomSheetStatusBar(siswaKelas, statusMap),
-            ),
-            const SizedBox(height: 8),
-            // Daftar siswa
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                itemCount: siswaKelas.length,
-                itemBuilder: (context, index) {
-                  final siswa = siswaKelas[index];
-                  final status = statusMap[siswa.id];
-                  final sudahAbsen = status != null;
-
-                  String statusLabel;
-                  Color statusColor;
-                  if (sudahAbsen) {
-                    final labels = {
-                      'hadir': 'Hadir',
-                      'izin': 'Izin',
-                      'sakit': 'Sakit',
-                      'alpa': 'Alpa'
-                    };
-                    final colors = {
-                      'hadir': AppColors.success,
-                      'izin': AppColors.accent,
-                      'sakit': AppColors.warning,
-                      'alpa': Colors.red
-                    };
-                    statusLabel = labels[status] ?? status;
-                    statusColor = colors[status] ?? AppColors.muted;
-                  } else {
-                    statusLabel = 'Belum Absen';
-                    statusColor = AppColors.muted;
-                  }
-
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 6),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.card,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 16,
-                          backgroundColor: sudahAbsen
-                              ? statusColor.withValues(alpha: 0.12)
-                              : AppColors.border.withValues(alpha: 0.5),
-                          child: Text(
-                            siswa.nama.isNotEmpty
-                                ? siswa.nama[0].toUpperCase()
-                                : '?',
-                            style: TextStyle(
-                              color: sudahAbsen ? statusColor : AppColors.muted,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${index + 1}. ${siswa.nama}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                  color: AppColors.foreground,
-                                ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: AppColors.foreground,
                               ),
+                            ),
+                            Text(
+                              '${siswaList.length} siswa',
+                              style: const TextStyle(
+                                  color: AppColors.muted, fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(ctx),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.border.withValues(alpha: 0.5),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.close,
+                              size: 18, color: AppColors.muted),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Status summary bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: _buildDetailStatusBar(siswaList, statusMap),
+                ),
+                const SizedBox(height: 8),
+                // Daftar siswa
+                Expanded(
+                  child: siswaList.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.check_circle_rounded,
+                                  size: 48, color: color.withValues(alpha: 0.3)),
+                              const SizedBox(height: 12),
                               Text(
-                                siswa.nis,
-                                style: const TextStyle(
-                                    color: AppColors.muted, fontSize: 11),
+                                'Tidak ada siswa',
+                                style: TextStyle(
+                                    color: AppColors.muted, fontSize: 15),
                               ),
                             ],
                           ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                          itemCount: siswaList.length,
+                          itemBuilder: (context, index) {
+                            final siswa = siswaList[index];
+                            final siswaStatus = statusMap[siswa.id];
+
+                            String statusLabel;
+                            Color statusColor;
+                            switch (siswaStatus) {
+                              case 'hadir':
+                                statusLabel = 'Hadir';
+                                statusColor = AppColors.success;
+                                break;
+                              case 'izin':
+                                statusLabel = 'Izin';
+                                statusColor = AppColors.accent;
+                                break;
+                              case 'sakit':
+                                statusLabel = 'Sakit';
+                                statusColor = AppColors.warning;
+                                break;
+                              case 'alpa':
+                                statusLabel = 'Alpa';
+                                statusColor = Colors.red;
+                                break;
+                              default:
+                                statusLabel = 'Belum Absen';
+                                statusColor = AppColors.muted;
+                            }
+
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 6),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: AppColors.card,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: statusColor.withValues(alpha: 0.15),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 16,
+                                    backgroundColor:
+                                        statusColor.withValues(alpha: 0.12),
+                                    child: Text(
+                                      siswa.nama.isNotEmpty
+                                          ? siswa.nama[0].toUpperCase()
+                                          : '?',
+                                      style: TextStyle(
+                                        color: statusColor,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '${index + 1}. ${siswa.nama}',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 13,
+                                            color: AppColors.foreground,
+                                          ),
+                                        ),
+                                        Text(
+                                          '${siswa.nis} • Kelas ${siswa.kelas}',
+                                          style: const TextStyle(
+                                              color: AppColors.muted,
+                                              fontSize: 11),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          statusColor.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      statusLabel,
+                                      style: TextStyle(
+                                        color: statusColor,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            statusLabel,
-                            style: TextStyle(
-                              color: statusColor,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  // ─── Bottom Sheet Status Bar ──────────────────────────────────
-  Widget _buildBottomSheetStatusBar(
-    List<Siswa> siswaKelas,
+  // ─── Detail Status Bar ──────────────────────────────────────
+  Widget _buildDetailStatusBar(
+    List<Siswa> siswaList,
     Map<String, String> statusMap,
   ) {
-    final hadir = siswaKelas.where((s) => statusMap[s.id] == 'hadir').length;
-    final izin = siswaKelas.where((s) => statusMap[s.id] == 'izin').length;
-    final sakit = siswaKelas.where((s) => statusMap[s.id] == 'sakit').length;
-    final alpa = siswaKelas.where((s) => statusMap[s.id] == 'alpa').length;
+    final hadir = siswaList.where((s) => statusMap[s.id] == 'hadir').length;
+    final izin = siswaList.where((s) => statusMap[s.id] == 'izin').length;
+    final sakit = siswaList.where((s) => statusMap[s.id] == 'sakit').length;
+    final alpa = siswaList.where((s) => statusMap[s.id] == 'alpa').length;
     final belumAbsen =
-        siswaKelas.where((s) => !statusMap.containsKey(s.id)).length;
+        siswaList.where((s) => !statusMap.containsKey(s.id)).length;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -1031,48 +1173,73 @@ class _SheetStatusPill extends StatelessWidget {
   }
 }
 
-// ─── Kelas Stat Item ──────────────────────────────────────────
-class _KelasStatItem extends StatelessWidget {
+// ─── Status Summary Card ──────────────────────────────────────
+class _StatusSummaryCard extends StatelessWidget {
   final IconData icon;
   final String label;
-  final String value;
+  final int value;
   final Color color;
+  final VoidCallback? onTap;
 
-  const _KelasStatItem({
+  const _StatusSummaryCard({
     required this.icon,
     required this.label,
     required this.value,
     required this.color,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
+    return Tilt3D(
+      child: PressableScale(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                color.withValues(alpha: 0.1),
+                color.withValues(alpha: 0.05),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
           ),
-          const SizedBox(width: 2),
-          // Flexible + ellipsis: label menyusut bila ruang sempit,
-          // mencegah RenderFlex overflow pada layar kecil.
-          Flexible(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: AppColors.muted, fontSize: 10),
-            ),
+          child: Column(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const SizedBox(height: 8),
+              CountUpNumber(
+                value: value,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: color.withValues(alpha: 0.8),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

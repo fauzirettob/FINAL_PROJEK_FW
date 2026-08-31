@@ -93,31 +93,63 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
     _loadData();
   }
 
+  bool get _isSemuaKelas => widget.kelas.isEmpty;
+
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
+      final auth = context.read<AuthProvider>();
       final semuaSiswa = await _fs.getAllSiswa();
-      final siswaKelas = semuaSiswa.where((s) => s.kelas == widget.kelas).toList();
 
-      final existingAbsensi = _hasMataPelajaran
-          ? await _fs.getAbsensiByKelasAndMapelAndDate(
-              widget.kelas,
-              widget.mataPelajaran!,
-              widget.tanggal,
-            )
-          : await _fs.getAbsensiByKelasAndDate(
-              widget.kelas,
-              widget.tanggal,
-            );
+      // Filter siswa berdasarkan kelas atau semua kelas guru
+      List<Siswa> siswaList;
+      if (_isSemuaKelas && auth.guru != null && auth.guru!.kelasList.isNotEmpty) {
+        // Ambil semua siswa dari kelas-kelas guru
+        final guruKelas = auth.guru!.kelasList;
+        siswaList = semuaSiswa.where((s) => guruKelas.contains(s.kelas)).toList();
+      } else if (_isSemuaKelas) {
+        // Jika guru tidak punya kelasList, tampilkan semua siswa
+        siswaList = semuaSiswa;
+      } else {
+        siswaList = semuaSiswa.where((s) => s.kelas == widget.kelas).toList();
+      }
 
-      final isLocked = _hasMataPelajaran
+      // Load absensi
+      List<Absensi> existingAbsensi;
+      if (_isSemuaKelas) {
+        // Load semua absensi untuk tanggal ini lalu filter di Dart
+        final allAbsensi = await _fs.getAbsensiByDate(widget.tanggal);
+        if (_hasMataPelajaran) {
+          existingAbsensi = allAbsensi.where((a) => a.mataPelajaran == widget.mataPelajaran).toList();
+        } else {
+          existingAbsensi = allAbsensi;
+        }
+      } else {
+        existingAbsensi = _hasMataPelajaran
+            ? await _fs.getAbsensiByKelasAndMapelAndDate(
+                widget.kelas,
+                widget.mataPelajaran!,
+                widget.tanggal,
+              )
+            : await _fs.getAbsensiByKelasAndDate(
+                widget.kelas,
+                widget.tanggal,
+              );
+      }
+
+      // Lock status (semua kelas = tidak dikunci per kelas)
+      final isLocked = _isSemuaKelas ? false : (_hasMataPelajaran
           ? await _fs.isMapelLocked(
               widget.kelas, widget.mataPelajaran!, widget.tanggal)
-          : await _fs.isKelasLocked(widget.kelas, widget.tanggal);
+          : await _fs.isKelasLocked(widget.kelas, widget.tanggal));
+
+      // Notifikasi status
       final notifSent = _hasMataPelajaran
           ? await _fs.isNotifikasiMapelSent(
               widget.kelas, widget.mataPelajaran!, widget.tanggal)
-          : await _fs.isNotifikasiKelasSent(widget.kelas, widget.tanggal);
+          : (_isSemuaKelas
+              ? false
+              : await _fs.isNotifikasiKelasSent(widget.kelas, widget.tanggal));
 
       // Build status map from existing absensi
       final statusMap = <String, String>{};
@@ -126,13 +158,20 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
       }
 
       // Set default status for students without absensi (default: alpa)
-      for (final siswa in siswaKelas) {
+      for (final siswa in siswaList) {
         statusMap.putIfAbsent(siswa.id, () => 'alpa');
       }
 
+      // Sort siswa per kelas lalu nama
+      siswaList.sort((a, b) {
+        final kelasCmp = a.kelas.compareTo(b.kelas);
+        if (kelasCmp != 0) return kelasCmp;
+        return a.nama.compareTo(b.nama);
+      });
+
       if (mounted) {
         setState(() {
-          _siswaList = siswaKelas;
+          _siswaList = siswaList;
           _existingAbsensi = existingAbsensi;
           _statusMap = statusMap;
           _isLocked = isLocked;
@@ -221,16 +260,24 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
       }
 
       // Reload data to refresh existing absensi list
-      final updatedAbsensi = _hasMataPelajaran
-          ? await _fs.getAbsensiByKelasAndMapelAndDate(
-              widget.kelas,
-              widget.mataPelajaran!,
-              widget.tanggal,
-            )
-          : await _fs.getAbsensiByKelasAndDate(
-              widget.kelas,
-              widget.tanggal,
-            );
+      final List<Absensi> updatedAbsensi;
+      if (_isSemuaKelas) {
+        final allAbsensi = await _fs.getAbsensiByDate(widget.tanggal);
+        updatedAbsensi = _hasMataPelajaran
+            ? allAbsensi.where((a) => a.mataPelajaran == widget.mataPelajaran).toList()
+            : allAbsensi;
+      } else {
+        updatedAbsensi = _hasMataPelajaran
+            ? await _fs.getAbsensiByKelasAndMapelAndDate(
+                widget.kelas,
+                widget.mataPelajaran!,
+                widget.tanggal,
+              )
+            : await _fs.getAbsensiByKelasAndDate(
+                widget.kelas,
+                widget.tanggal,
+              );
+      }
 
       if (mounted) {
         setState(() {
@@ -240,7 +287,7 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
         if (showToast) {
           ToastService.show(
             context,
-            message: '✅ Absensi kelas ${widget.kelas} berhasil disimpan',
+            message: _isSemuaKelas ? '✅ Absensi berhasil disimpan' : '✅ Absensi kelas ${widget.kelas} berhasil disimpan',
           );
         }
       }
@@ -267,8 +314,10 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
       barrierDismissible: false,
       builder: (ctx) => AwesomeConfirmDialog(
         title: 'Kunci Absensi',
-        message: 'Setelah dikunci, absensi kelas ${widget.kelas} untuk hari '
-            'ini tidak dapat diubah lagi.\n\nLanjutkan?',
+        message: _isSemuaKelas
+            ? 'Setelah dikunci, absensi tidak dapat diubah lagi.\n\nLanjutkan?'
+            : 'Setelah dikunci, absensi kelas ${widget.kelas} untuk hari '
+                'ini tidak dapat diubah lagi.\n\nLanjutkan?',
         icon: Icons.lock_rounded,
         color: AppColors.warning,
         confirmText: 'Kunci',
@@ -294,7 +343,7 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
         setState(() => _isLocked = true);
         ToastService.show(
           context,
-          message: '🔒 Absensi kelas ${widget.kelas} telah dikunci',
+          message: _isSemuaKelas ? '🔒 Absensi telah dikunci' : '🔒 Absensi kelas ${widget.kelas} telah dikunci',
         );
       }
     } catch (e) {
@@ -312,8 +361,12 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
   Future<void> _kirimNotifikasi() async {
     if (_isSendingNotif || _notifikasiSent) return;
 
+    // Filter: hanya siswa dengan HP orang tua DAN status hadir/izin/sakit
     final siswaDenganHp = _siswaList
-        .where((s) => s.hpOrtu.trim().isNotEmpty)
+        .where((s) {
+      final status = _statusMap[s.id] ?? 'alpa';
+      return s.hpOrtu.trim().isNotEmpty && (status == 'hadir' || status == 'izin' || status == 'sakit');
+    })
         .toList();
 
     if (siswaDenganHp.isEmpty) {
@@ -326,8 +379,10 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
     }
 
     final todayStr = DateFormat('dd/MM/yyyy').format(widget.tanggal);
+    final jamNow = DateFormat.Hm().format(DateTime.now());
     final namaContoh = siswaDenganHp.first.nama;
     final statusContoh = _statusMap[siswaDenganHp.first.id] ?? 'alpa';
+    final auth = context.read<AuthProvider>();
 
     // Popup konfirmasi kirim WA yang informatif: header gradien WA,
     // pratinjau pesan, dan jumlah penerima.
@@ -337,10 +392,13 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
       builder: (ctx) => WhatsAppConfirmDialog(
         jumlahOrangTua: siswaDenganHp.length,
         totalSiswa: _siswaList.length,
-        kelas: widget.kelas,
+        kelas: _isSemuaKelas ? 'Semua Kelas' : widget.kelas,
         tanggal: todayStr,
         namaContoh: namaContoh,
         statusContoh: statusContoh,
+        mataPelajaran: widget.mataPelajaran,
+        guruNama: auth.guru?.nama ?? auth.admin?.nama,
+        jam: jamNow,
       ),
     );
 
@@ -368,6 +426,9 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
         namaSiswa: siswa.nama,
         status: statusLabel,
         tanggal: todayStr,
+        mataPelajaran: widget.mataPelajaran,
+        guruNama: auth.guru?.nama ?? auth.admin?.nama,
+        jam: jamNow,
       );
 
       if (berhasil) {
@@ -389,9 +450,10 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
 
     // Mark notification as sent for this class-date
     if (_hasMataPelajaran) {
+      // Untuk flow 'semua kelas' (kelas=''), tetap tandai per mapel
       await _fs.markNotifikasiMapelSent(
-        widget.kelas, widget.mataPelajaran!, widget.tanggal);
-    } else {
+          widget.kelas, widget.mataPelajaran!, widget.tanggal);
+    } else if (!_isSemuaKelas) {
       await _fs.markNotifikasiKelasSent(widget.kelas, widget.tanggal);
     }
 
@@ -408,8 +470,10 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
       builder: (ctx) => WhatsAppResultDialog(
         berhasil: terkirim,
         gagal: gagal,
-        kelas: widget.kelas,
+        kelas: _isSemuaKelas ? 'Semua Kelas' : widget.kelas,
         tanggal: todayStr,
+        mataPelajaran: widget.mataPelajaran,
+        guruNama: auth.guru?.nama ?? auth.admin?.nama,
       ),
     );
   }
@@ -426,7 +490,7 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
             Row(
               children: [
                 Text(
-                  'Kelas ${widget.kelas}',
+                  _isSemuaKelas ? 'Semua Kelas' : 'Kelas ${widget.kelas}',
                   style: const TextStyle(fontSize: 16),
                 ),
                 if (_hasMataPelajaran) ...[
@@ -506,9 +570,9 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
               color: AppColors.muted.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Tidak ada siswa di kelas ini',
-              style: TextStyle(color: AppColors.muted, fontSize: 15),
+            Text(
+              _isSemuaKelas ? 'Tidak ada siswa yang ditugaskan' : 'Tidak ada siswa di kelas ini',
+              style: const TextStyle(color: AppColors.muted, fontSize: 15),
             ),
           ],
         ),
@@ -768,7 +832,7 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
                                 ),
                                 const SizedBox(height: 1),
                                 Text(
-                                  siswa.nis,
+                                  _isSemuaKelas ? 'Kelas ${siswa.kelas} • ${siswa.nis}' : siswa.nis,
                                   style: const TextStyle(
                                     color: AppColors.muted,
                                     fontSize: 10,

@@ -2,26 +2,88 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Daftar mata pelajaran yang tersedia di aplikasi.
 const List<String> daftarMataPelajaran = [
+  // Agama
   "Al-Qur'an Hadits",
   'Fiqih',
   'Aqidah',
   'Bahasa Arab',
   'Sejarah Kebudayaan Islam',
+  // Umum
   'Matematika',
   'Bahasa Indonesia',
   'Bahasa Inggris',
-  'IPA (Fisika)',
-  'IPA (Biologi)',
-  'IPA (Kimia)',
-  'IPS (Sejarah)',
-  'IPS (Geografi)',
-  'IPS (Ekonomi)',
   'PPKn',
   'PJOK',
   'Seni Budaya',
   'Prakarya',
   'Informatika',
+  // IPA
+  'IPA (Fisika)',
+  'IPA (Biologi)',
+  'IPA (Kimia)',
+  // IPS
+  'IPS (Sejarah)',
+  'IPS (Geografi)',
+  'IPS (Ekonomi)',
+  // Tambahan (Jadwal)
+  'Karate',
+  'Ekstrakurikuler',
+  'BPI',
 ];
+
+/// Daftar nama hari dalam seminggu (Senin–Jumat).
+const List<String> daftarHari = [
+  'SENIN',
+  'SELASA',
+  'RABU',
+  'KAMIS',
+  'JUMAT',
+];
+
+/// Kategori mata pelajaran untuk tampilan berkelompok.
+const Map<String, List<String>> kategoriMapel = {
+  'Agama': [
+    "Al-Qur'an Hadits",
+    'Fiqih',
+    'Aqidah',
+    'Bahasa Arab',
+    'Sejarah Kebudayaan Islam',
+  ],
+  'Umum': [
+    'Matematika',
+    'Bahasa Indonesia',
+    'Bahasa Inggris',
+    'PPKn',
+    'PJOK',
+    'Seni Budaya',
+    'Prakarya',
+    'Informatika',
+  ],
+  'IPA': [
+    'IPA (Fisika)',
+    'IPA (Biologi)',
+    'IPA (Kimia)',
+  ],
+  'IPS': [
+    'IPS (Sejarah)',
+    'IPS (Geografi)',
+    'IPS (Ekonomi)',
+  ],
+  'Lainnya': [
+    'Karate',
+    'Ekstrakurikuler',
+    'BPI',
+  ],
+};
+
+/// Warna per kategori untuk UI.
+const Map<String, int> kategoriMapelColors = {
+  'Agama': 0xFF2E7D32, // Hijau
+  'Umum': 0xFF1565C0,  // Biru
+  'IPA': 0xFF7B1FA2,   // Ungu
+  'IPS': 0xFFE65100,   // Oranye
+  'Lainnya': 0xFF00695C, // Teal
+};
 
 class Absensi {
   final String id;

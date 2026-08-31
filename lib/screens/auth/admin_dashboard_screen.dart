@@ -14,9 +14,11 @@ import '../../widgets/tilt3d.dart';
 import '../../models/siswa.dart';
 import '../../models/guru.dart';
 import '../../models/absensi.dart';
+import '../../models/jadwal_pelajaran.dart';
 import '../../providers/auth_provider.dart';
 import 'manage_admin_screen.dart';
 import 'rekap_absensi_screen.dart';
+import 'jadwal_pelajaran_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   final void Function(int tabIndex)? onNavigateToTab;
@@ -378,6 +380,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
             const SizedBox(height: 24),
 
+            // ── Guru Piket Hari Ini ──
+            EntranceAnimation(
+              delay: const Duration(milliseconds: 190),
+              child: _buildGuruPiketSection(),
+            ),
+
+            const SizedBox(height: 20),
+
+            // ── Guru Mengajar ──
+            EntranceAnimation(
+              delay: const Duration(milliseconds: 250),
+              child: _buildGuruMengajarSection(),
+            ),
+
+            const SizedBox(height: 24),
+
             // ── Menu Admin ──
             EntranceAnimation(
               delay: const Duration(milliseconds: 200),
@@ -429,6 +447,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ),
                   const SizedBox(height: 8),
                   _AdminMenuCard(
+                    icon: Icons.schedule_rounded,
+                    color: const Color(0xFF0EA5E9),
+                    label: "Jadwal Pelajaran",
+                    subtitle: "Atur jadwal mingguan",
+                    onTap: () => _openJadwalPelajaran(),
+                  ),
+                  const SizedBox(height: 8),
+                  _AdminMenuCard(
                     icon: Icons.admin_panel_settings,
                     color: Colors.deepOrange,
                     label: "Kelola Admin",
@@ -457,6 +483,286 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return Stream.fromFuture(_fs.getAllGuru());
   }
 
+  /// Hari ini dalam format uppercase (SENIN, SELASA, dll.)
+  String _getHariIni() {
+    const hariMap = {
+      1: 'SENIN', 2: 'SELASA', 3: 'RABU', 4: 'KAMIS', 5: 'JUMAT',
+    };
+    return hariMap[DateTime.now().weekday] ?? 'SENIN';
+  }
+
+  // ─── Load Guru Piket dengan fallback ──────────────────────────
+  Future<List<GuruPiket>> _loadGuruPiket() async {
+    try {
+      final data = await _fs.getGuruPiket();
+      if (data.isEmpty) {
+        return guruPiketDefault
+            .map((d) => GuruPiket.fromMap(d))
+            .toList();
+      }
+      return data;
+    } catch (e) {
+      return guruPiketDefault
+          .map((d) => GuruPiket.fromMap(d))
+          .toList();
+    }
+  }
+
+  Widget _buildGuruPiketSection() {
+    return FutureBuilder<List<GuruPiket>>(
+      future: _loadGuruPiket(),
+      builder: (context, snapshot) {
+        final guruPiket = snapshot.data ?? [];
+        final hariIni = _getHariIni();
+        final piketHariIni = guruPiket
+            .where((p) => p.hari.toUpperCase() == hariIni)
+            .toList();
+        final namaPiket = piketHariIni
+            .expand((p) => p.namaGuru)
+            .toList();
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0EA5E9).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.assignment_ind_rounded,
+                        color: Color(0xFF0EA5E9), size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Guru Piket Hari Ini',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: AppColors.foreground,
+                          ),
+                        ),
+                        Text(
+                          hariIni,
+                          style: const TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (namaPiket.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.muted.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Text(
+                    'Tidak ada guru piket hari ini',
+                    style: TextStyle(color: AppColors.muted, fontSize: 13),
+                  ),
+                )
+              else
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: namaPiket.map((nama) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0EA5E9).withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: const Color(0xFF0EA5E9).withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.person_rounded,
+                              size: 16, color: Color(0xFF0EA5E9)),
+                          const SizedBox(width: 6),
+                          Text(
+                            nama,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF0EA5E9),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGuruMengajarSection() {
+    return StreamBuilder<List<Guru>>(
+      stream: _getAllGuruStream(),
+      builder: (context, snapshot) {
+        final semuaGuru = snapshot.data ?? [];
+        // Kelompokkan guru berdasarkan mapel yang diajar
+        final Map<String, List<String>> mapelToGuru = {};
+        for (final guru in semuaGuru) {
+          for (final mapel in guru.mapelList) {
+            mapelToGuru.putIfAbsent(mapel, () => []);
+            if (!mapelToGuru[mapel]!.contains(guru.nama)) {
+              mapelToGuru[mapel]!.add(guru.nama);
+            }
+          }
+        }
+
+        final sortedMapel = mapelToGuru.keys.toList()..sort();
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.menu_book_rounded,
+                        color: AppColors.primary, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Guru Mengajar',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: AppColors.foreground,
+                          ),
+                        ),
+                        Text(
+                          '${sortedMapel.length} mata pelajaran',
+                          style: const TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (sortedMapel.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.muted.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Text(
+                    'Belum ada mata pelajaran yang ditugaskan',
+                    style: TextStyle(color: AppColors.muted, fontSize: 13),
+                  ),
+                )
+              else
+                ...sortedMapel.map((mapel) {
+                  final guruList = mapelToGuru[mapel]!;
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          margin: const EdgeInsets.only(top: 6),
+                          decoration: const BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                mapel,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.foreground,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                guruList.join(', '),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.muted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   void _navigateToTab(int tabIndex) {
     widget.onNavigateToTab?.call(tabIndex);
   }
@@ -472,6 +778,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const RekapAbsensiScreen()),
+    );
+  }
+
+  void _openJadwalPelajaran() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const JadwalPelajaranScreen()),
     );
   }
 }

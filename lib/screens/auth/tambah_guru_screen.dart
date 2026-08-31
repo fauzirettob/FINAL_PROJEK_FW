@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/toast_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/awesome_dialogs.dart';
+import '../../models/jadwal_pelajaran.dart';
 
 class TambahGuruScreen extends StatefulWidget {
   final void Function(int tabIndex)? onNavigateToTab;
@@ -25,6 +26,17 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
+  List<String> _selectedKelas = [];
+  String? _selectedWaliKelas;
+  bool _isWaliKelas = false; // true = daftar sebagai Wali Kelas
+
+  // Daftar kelas
+  static const List<String> _daftarKelas = ['10', '11', '12'];
+  static const int _warnaKelas = 0xFF1565C0; // Biru
+  static const int _warnaWaliKelas = 0xFFFF9800; // Orange
+
+  /// Mata pelajaran yang di-derive otomatis berdasarkan kelas yang dipilih
+  List<String> get _autoMapel => getMapelByMultipleKelas(_selectedKelas);
 
   @override
   void dispose() {
@@ -39,6 +51,8 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
   bool _isValidEmail(String email) {
     return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
   }
+
+
 
   Future<void> _handleTambahGuru() async {
     final nip = _nipController.text.trim();
@@ -72,30 +86,43 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
       return;
     }
 
+    if (_selectedKelas.isEmpty) {
+      _showToast('Pilih minimal satu kelas yang diajar', color: Colors.red);
+      return;
+    }
+
+    if (_isWaliKelas && _selectedWaliKelas == null) {
+      _showToast('Pilih kelas untuk dijadikan Wali Kelas', color: Colors.red);
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
-      // Gunakan AuthProvider.registerGuruByAdmin() yang akan:
-      // 1. Buat akun guru via Firebase Auth
-      // 2. Simpan data guru ke Firestore
-      // 3. Re-login admin otomatis dengan kredensial yang tersimpan
       final authProvider = context.read<AuthProvider>();
-      final success = await authProvider.registerGuruByAdmin(email, password, nama, nip: nip);
+      final mapelList = _autoMapel;
+      final success = await authProvider.registerGuruByAdmin(email, password, nama,
+          nip: nip, mapelList: mapelList, kelasList: _selectedKelas,
+          waliKelas: _selectedWaliKelas);
 
       if (!mounted) return;
 
       if (success) {
-        // Bersihkan form
+        // Data wali kelas sudah tersimpan dari registerGuruByAdmin
+
         _nipController.clear();
         _namaController.clear();
         _emailController.clear();
         _passwordController.clear();
         _confirmPasswordController.clear();
-
-        // Tampilkan dialog sukses — admin tetap di halaman ini
+        setState(() {
+        _selectedKelas = [];
+        _selectedWaliKelas = null;
+        _isWaliKelas = false;
+        });
         await _showSuccessDialog();
       } else {
-        _showToast('Gagal menambah guru. Kredensial admin tidak tersedia. Silakan coba lagi.', color: Colors.red);
+        _showToast('Gagal menambah guru. Kredensial admin tidak tersedia.', color: Colors.red);
       }
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -118,22 +145,19 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
       if (!mounted) return;
       String pesan;
       if (e.code == 'permission-denied') {
-        pesan = 'Firestore rules menolak akses. Deploy ulang firestore.rules ke Firebase.';
+        pesan = 'Firestore rules menolak akses.';
       } else {
         pesan = 'Error Firestore: ${e.message}';
       }
       _showToast(pesan, color: Colors.red);
     } catch (e) {
       if (!mounted) return;
-      // Jika gagal karena session, arahkan ke login
       _showToast('Registrasi gagal. Silakan coba lagi.', color: Colors.red);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // Popup sukses bergaya popup notifikasi WA: centang menggambar diri +
-  // partikel perayaan + tombol untuk menambah guru lagi.
   Future<void> _showSuccessDialog() async {
     return showDialog<void>(
       context: context,
@@ -180,12 +204,182 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Buat akun guru baru. Setelah berhasil, form akan dikosongkan dan Anda dapat menambah guru lagi.',
+                      'Pilih kelas untuk guru. Mata pelajaran akan otomatis ditentukan berdasarkan jadwal.',
                       style: TextStyle(color: AppColors.primary.withValues(alpha: 0.8), fontSize: 12),
                     ),
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: 24),
+
+            // ═══ PILIHAN ROLE ═══
+            const Text('Daftar Sebagai', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            const SizedBox(height: 4),
+            Text(
+              'Pilih role guru yang ingin didaftarkan',
+              style: TextStyle(color: AppColors.muted.withValues(alpha: 0.7), fontSize: 12),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                // Guru Biasa
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() {
+                      _isWaliKelas = false;
+                      _selectedWaliKelas = null;
+                    }),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: !_isWaliKelas
+                            ? AppColors.primary.withValues(alpha: 0.1)
+                            : AppColors.card,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: !_isWaliKelas ? AppColors.primary : AppColors.border,
+                          width: !_isWaliKelas ? 2 : 1,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 52,
+                            height: 52,
+                            decoration: BoxDecoration(
+                              color: !_isWaliKelas
+                                  ? AppColors.primary.withValues(alpha: 0.15)
+                                  : AppColors.muted.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Icon(
+                              Icons.school_rounded,
+                              size: 28,
+                              color: !_isWaliKelas ? AppColors.primary : AppColors.muted,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            'Guru',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: !_isWaliKelas ? AppColors.primary : AppColors.foreground,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Mengajar mata pelajaran',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: !_isWaliKelas
+                                  ? AppColors.primary.withValues(alpha: 0.7)
+                                  : AppColors.muted,
+                            ),
+                          ),
+                          if (!_isWaliKelas) ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                '✓ Dipilih',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Wali Kelas
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _isWaliKelas = true),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: _isWaliKelas
+                            ? Color(_warnaWaliKelas).withValues(alpha: 0.1)
+                            : AppColors.card,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: _isWaliKelas ? Color(_warnaWaliKelas) : AppColors.border,
+                          width: _isWaliKelas ? 2 : 1,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 52,
+                            height: 52,
+                            decoration: BoxDecoration(
+                              color: _isWaliKelas
+                                  ? Color(_warnaWaliKelas).withValues(alpha: 0.15)
+                                  : AppColors.muted.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Icon(
+                              Icons.star_rounded,
+                              size: 28,
+                              color: _isWaliKelas ? Color(_warnaWaliKelas) : AppColors.muted,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            'Wali Kelas',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: _isWaliKelas ? Color(_warnaWaliKelas) : AppColors.foreground,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Mengajar + Kelola Kelas',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: _isWaliKelas
+                                  ? Color(_warnaWaliKelas).withValues(alpha: 0.7)
+                                  : AppColors.muted,
+                            ),
+                          ),
+                          if (_isWaliKelas) ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Color(_warnaWaliKelas).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                '⭐ Dipilih',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFFFF9800),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
 
@@ -263,13 +457,276 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+
+            // ═══ KELAS ═══
+            const Text('Kelas yang Diajar', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            const SizedBox(height: 4),
+            Text(
+              'Ketuk kategori untuk membuka, lalu pilih kelas. Mapel otomatis ditentukan.',
+              style: TextStyle(color: AppColors.muted.withValues(alpha: 0.7), fontSize: 12),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _daftarKelas.map((kelas) {
+                final isSelected = _selectedKelas.contains(kelas);
+                final warna = Color(_warnaKelas);
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      if (_selectedKelas.contains(kelas)) {
+                        _selectedKelas.remove(kelas);
+                        if (_selectedWaliKelas == kelas) {
+                          _selectedWaliKelas = null;
+                        }
+                      } else {
+                        _selectedKelas.add(kelas);
+                      }
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? warna.withValues(alpha: 0.15)
+                          : AppColors.card,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isSelected ? warna : AppColors.border,
+                        width: isSelected ? 2 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isSelected ? Icons.check_circle : Icons.circle_outlined,
+                          size: 16,
+                          color: isSelected ? warna : AppColors.muted,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Kelas $kelas',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected ? warna : AppColors.foreground,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            if (_selectedKelas.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                '${_selectedKelas.length} kelas dipilih',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.accent,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+            const SizedBox(height: 20),
+
+            // ═══ MATA PELAJARAN (AUTO-DERIVED) ═══
+            if (_selectedKelas.isNotEmpty) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.auto_awesome, size: 16, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Mata Pelajaran (Otomatis)',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Berdasarkan jadwal untuk kelas: ${_selectedKelas.join(", ")}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.muted.withValues(alpha: 0.7),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: _autoMapel.map((mapel) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: AppColors.primary.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.check_circle, size: 12, color: AppColors.primary),
+                              const SizedBox(width: 4),
+                              Text(
+                                mapel,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+
+            // ═══ WALI KELAS ═══
+            if (_isWaliKelas && _selectedKelas.isNotEmpty) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Color(_warnaWaliKelas).withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Color(_warnaWaliKelas).withValues(alpha: 0.2)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.star_rounded, size: 18, color: Color(0xFFFF9800)),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Pilih Kelas Wali Kelas',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: Color(0xFFFF9800),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Pilih kelas yang akan diampu sebagai wali kelas',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.muted.withValues(alpha: 0.7),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _selectedKelas.map((kelas) {
+                        final isSelected = _selectedWaliKelas == kelas;
+                        return GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _selectedWaliKelas = isSelected ? null : kelas;
+                            });
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? const Color(0xFFFF9800).withValues(alpha: 0.15)
+                                  : AppColors.card,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isSelected ? const Color(0xFFFF9800) : AppColors.border,
+                                width: isSelected ? 2 : 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  isSelected ? Icons.star_rounded : Icons.star_border_rounded,
+                                  size: 20,
+                                  color: isSelected ? const Color(0xFFFF9800) : AppColors.muted,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Kelas $kelas',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                    color: isSelected ? const Color(0xFFFF9800) : AppColors.foreground,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+              if (_selectedWaliKelas != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF9800).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.star_rounded, size: 14, color: Color(0xFFFF9800)),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Wali Kelas $_selectedWaliKelas',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFFFF9800),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 32),
+            ],
 
             // Tombol Simpan
             SizedBox(
               width: double.infinity,
               height: 54,
-              child: ElevatedButton.icon(
+              child: ElevatedButton(
                 onPressed: _isLoading ? null : _handleTambahGuru,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
@@ -279,15 +736,22 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                   ),
                   elevation: 0,
                 ),
-                icon: _isLoading
-                    ? const SizedBox(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (_isLoading)
+                      const SizedBox(
                         width: 20, height: 20,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
-                    : const Icon(Icons.person_add),
-                label: Text(
-                  _isLoading ? 'Menyimpan...' : 'Buat Akun Guru',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    else
+                      const Icon(Icons.person_add),
+                    const SizedBox(width: 8),
+                    Text(
+                      _isLoading ? 'Menyimpan...' : (_isWaliKelas ? 'Buat Akun Wali Kelas' : 'Buat Akun Guru'),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                  ],
                 ),
               ),
             ),

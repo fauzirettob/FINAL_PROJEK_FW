@@ -16,6 +16,7 @@ import 'tambah_guru_screen.dart';
 import 'olah_data_screen.dart';
 import 'login_screen.dart';
 import 'rekap_absensi_screen.dart';
+import 'wali_kelas_dashboard_screen.dart';
 
 class MainShell extends StatefulWidget {
   final FirestoreService? firestoreService;
@@ -73,6 +74,11 @@ class _MainShellState extends State<MainShell> {
       }
       return _buildAdminShell();
     } else {
+      // Cek apakah guru adalah wali kelas
+      final guru = auth.guru;
+      if (guru != null && guru.isWaliKelas) {
+        return _buildWaliKelasShell();
+      }
       return _buildGuruShell();
     }
   }
@@ -231,6 +237,46 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
+  Widget _buildWaliKelasShell() {
+    final screens = <Widget>[
+      WaliKelasDashboardScreen(
+          onNavigateToTab: switchToTab),
+      const StudentsScreen(),
+      const RekapAbsensiScreen(),
+      const ProfileScreen(),
+    ];
+
+    return Scaffold(
+      body: _buildAnimatedTabBody(screens),
+      bottomNavigationBar: FloatingNavBar(
+        currentIndex: _currentIndex,
+        onTap: (index) => setState(() => _currentIndex = index),
+        items: const [
+          FloatingNavItem(
+            icon: Icons.home_outlined,
+            activeIcon: Icons.home,
+            label: "Beranda",
+          ),
+          FloatingNavItem(
+            icon: Icons.people_outline,
+            activeIcon: Icons.people,
+            label: "Siswa",
+          ),
+          FloatingNavItem(
+            icon: Icons.table_chart_outlined,
+            activeIcon: Icons.table_chart,
+            label: "Rekap",
+          ),
+          FloatingNavItem(
+            icon: Icons.person_outline,
+            activeIcon: Icons.person,
+            label: "Profil",
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildAdminShell() {
     final screens = <Widget>[
       AdminDashboardScreen(onNavigateToTab: switchToTab),
@@ -278,7 +324,9 @@ class _MainShellState extends State<MainShell> {
 
   void switchToTab(int index) {
     final auth = context.read<AuthProvider>();
-    final maxIndex = auth.isAdmin ? 4 : 3;
+    final isAdmin = auth.isAdmin;
+    final isWaliKelas = auth.guru?.isWaliKelas ?? false;
+    final maxIndex = isAdmin ? 4 : (isWaliKelas ? 3 : 3);
     if (index >= 0 && index <= maxIndex) {
       setState(() => _currentIndex = index);
     }

@@ -5,8 +5,10 @@ import 'package:csv/csv.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../providers/auth_provider.dart';
 import '../../services/toast_service.dart';
 
 import '../../theme/app_theme.dart';
@@ -56,8 +58,28 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
   Future<void> _loadKelas() async {
     final snapshot = await _fs.getAllSiswa();
     if (!mounted) return;
-    final kelasList = snapshot.map((s) => s.kelas).toSet().toList()..sort();
-    setState(() => _kelasList = kelasList);
+
+    final auth = context.read<AuthProvider>();
+    final allKelas = snapshot.map((s) => s.kelas).toSet().toList()..sort();
+
+    // Jika guru, filter hanya kelas yang diampu
+    List<String> filteredKelas;
+    if (auth.isGuru && !auth.isAdmin) {
+      final guruKelas = auth.guru?.kelasList ?? [];
+      filteredKelas = guruKelas.isNotEmpty
+          ? allKelas.where((k) => guruKelas.contains(k)).toList()
+          : allKelas;
+    } else {
+      filteredKelas = allKelas;
+    }
+
+    setState(() {
+      _kelasList = filteredKelas;
+      // Auto-select jika hanya ada 1 kelas
+      if (filteredKelas.length == 1 && _selectedKelas == null) {
+        _selectedKelas = filteredKelas.first;
+      }
+    });
   }
 
   Future<void> _pickDateRange() async {

@@ -4,6 +4,7 @@ import '../models/siswa.dart';
 import '../models/absensi.dart';
 import '../models/guru.dart';
 import '../models/admin.dart';
+import '../models/jadwal_pelajaran.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db;
@@ -254,6 +255,22 @@ class FirestoreService {
 
   /// --- NEW: ABSENSI PER KELAS ---
 
+  /// Ambil semua absensi untuk tanggal tertentu (tanpa filter kelas)
+  Future<List<Absensi>> getAbsensiByDate(DateTime date) async {
+    final start = DateTime(date.year, date.month, date.day);
+    final end = start.add(const Duration(days: 1));
+
+    final snapshot = await _db
+        .collection('absensi')
+        .where('tanggal', isGreaterThanOrEqualTo: start)
+        .where('tanggal', isLessThan: end)
+        .get();
+
+    return snapshot.docs
+        .map((doc) => Absensi.fromMap(doc.data(), doc.id))
+        .toList();
+  }
+
   /// Ambil absensi untuk kelas dan tanggal tertentu
   Future<List<Absensi>> getAbsensiByKelasAndDate(String kelas, DateTime date) async {
     final start = DateTime(date.year, date.month, date.day);
@@ -394,5 +411,82 @@ class FirestoreService {
       'dikirim': true,
       'dikirimAt': Timestamp.now(),
     });
+  }
+
+  // --- JADWAL PELAJARAN ---
+
+  /// Ambil semua slot jadwal dari Firestore.
+  Future<List<JadwalSlot>> getJadwalSlot() async {
+    final snapshot = await _db.collection('jadwal_pelajaran').orderBy('jamKe').get();
+    return snapshot.docs
+        .map((doc) => JadwalSlot.fromMap(doc.data(), doc.id))
+        .toList();
+  }
+
+  /// Stream slot jadwal secara real-time.
+  Stream<List<JadwalSlot>> getJadwalSlotStream() {
+    return _db
+        .collection('jadwal_pelajaran')
+        .orderBy('jamKe')
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => JadwalSlot.fromMap(doc.data(), doc.id))
+              .toList(),
+        );
+  }
+
+  /// Simpan atau perbarui satu slot jadwal.
+  Future<void> saveJadwalSlot(JadwalSlot slot) async {
+    await _db.collection('jadwal_pelajaran').doc(slot.id).set(slot.toMap());
+  }
+
+  /// Simpan banyak slot jadwal sekaligus dalam batch.
+  Future<void> batchSaveJadwalSlot(List<JadwalSlot> records) async {
+    final batch = _db.batch();
+    for (final record in records) {
+      batch.set(
+        _db.collection('jadwal_pelajaran').doc(record.id),
+        record.toMap(),
+      );
+    }
+    await batch.commit();
+  }
+
+  /// Hapus satu slot jadwal.
+  Future<void> deleteJadwalSlot(String id) async {
+    await _db.collection('jadwal_pelajaran').doc(id).delete();
+  }
+
+  /// Hapus semua slot jadwal.
+  Future<void> deleteAllJadwalSlot() async {
+    final snapshot = await _db.collection('jadwal_pelajaran').get();
+    final batch = _db.batch();
+    for (final doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
+
+  // --- GURU PIKET ---
+
+  /// Ambil semua data guru piket dari Firestore.
+  Future<List<GuruPiket>> getGuruPiket() async {
+    final snapshot = await _db.collection('guru_piket').get();
+    return snapshot.docs
+        .map((doc) => GuruPiket.fromMap(doc.data()))
+        .toList();
+  }
+
+  /// Simpan semua data guru piket dalam batch.
+  Future<void> saveGuruPiket(List<GuruPiket> data) async {
+    final batch = _db.batch();
+    for (final item in data) {
+      batch.set(
+        _db.collection('guru_piket').doc(item.hari),
+        item.toMap(),
+      );
+    }
+    await batch.commit();
   }
 }

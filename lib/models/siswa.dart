@@ -1,20 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Daftar kategori kelas yang tersedia untuk siswa.
-/// I = kelas satu (10), II = kelas dua (11), III = kelas tiga (12).
 const List<String> kategoriKelas = [
-  'IPA I',
-  'IPA II',
-  'IPA III',
-  'IPS I',
-  'IPS II',
-  'IPS III',
-  'PUTRA I',
-  'PUTRA II',
-  'PUTRA III',
-  'PUTRI I',
-  'PUTRI II',
-  'PUTRI III',
+  '10',
+  '11',
+  '12',
 ];
 
 class Siswa {

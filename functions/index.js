@@ -6,6 +6,17 @@ admin.initializeApp();
 
 const db = admin.firestore();
 
+// ─── Helper: cek apakah caller adalah admin ──
+async function requireAdmin(uid) {
+  const adminDoc = await db.collection("admin").doc(uid).get();
+  if (!adminDoc.exists) {
+    throw new HttpsError(
+      "permission-denied",
+      "Hanya admin yang bisa melakukan operasi ini."
+    );
+  }
+}
+
 /**
  * addGuru - Cloud Function callable dari Flutter.
  *
@@ -113,5 +124,65 @@ exports.addGuru = onCall(async (request) => {
   return {
     success: true,
     uid,
+  };
+});
+
+/**
+ * resetGuruPassword - Cloud Function callable dari Flutter.
+ *
+ * Admin mengubah password akun Firebase Auth seorang guru.
+ * Menggunakan Firebase Admin SDK yang bisa update password
+ * tanpa perlu login sebagai guru tersebut.
+ *
+ * Parameter:
+ *   guruUid     (string) - UID guru yang password-nya akan direset
+ *   newPassword (string) - Password baru (minimal 6 karakter)
+ *
+ * Return:
+ *   { success: true, message: string }
+ */
+exports.resetGuruPassword = onCall(async (request) => {
+  // ── 1. Wajib login ──
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Anda harus login.");
+  }
+
+  // ── 2. Verifikasi admin ──
+  await requireAdmin(request.auth.uid);
+
+  const { guruUid, newPassword } = request.data;
+
+  // ── 3. Validasi input ──
+  if (!guruUid || typeof guruUid !== "string") {
+    throw new HttpsError("invalid-argument", "UID guru wajib diisi.");
+  }
+  if (!newPassword || typeof newPassword !== "string" || newPassword.length < 6) {
+    throw new HttpsError("invalid-argument", "Password minimal 6 karakter.");
+  }
+
+  // ── 4. Pastikan guru ada di Firestore ──
+  const guruDoc = await db.collection("guru").doc(guruUid).get();
+  if (!guruDoc.exists) {
+    throw new HttpsError("not-found", "Data guru tidak ditemukan.");
+  }
+
+  // ── 5. Update password via Firebase Auth Admin SDK ──
+  try {
+    await admin.auth().updateUser(guruUid, {
+      password: newPassword,
+    });
+  } catch (authError) {
+    logger.error("resetGuruPassword: Gagal update password:", authError);
+    if (authError.code === "auth/user-not-found") {
+      throw new HttpsError("not-found", "Akun guru tidak ditemukan di Firebase Auth.");
+    }
+    throw new HttpsError("internal", `Gagal update password: ${authError.message}`);
+  }
+
+  logger.info(`resetGuruPassword: Password guru ${guruUid} berhasil direset oleh admin ${request.auth.uid}`);
+
+  return {
+    success: true,
+    message: "Password guru berhasil direset.",
   };
 });

@@ -1,0 +1,103 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'fontSize': '14px', 'fontFamily': 'arial' }}}%%
+graph TB
+    subgraph Sistem ["🏫 Sistem Manajemen Absensi Sekolah"]
+        direction TB
+
+        %% ═══ Autentikasi ═══
+        UC01["🔐 Login"]
+        UC02["🚪 Logout"]
+        UC03["👤 Kelola Profil\n(Ubah Foto)"]
+
+        %% ═══ Admin ═══
+        UC04["📊 Dashboard Admin"]
+        UC05["➕ Tambah Guru"]
+        UC06["📁 Olah Data\nExport CSV"]
+        UC07["🔑 Kelola Akun Admin"]
+        UC08["👥 Lihat Semua Siswa"]
+        UC09["📅 Lihat Jadwal\nSemua Kelas"]
+        UC10["📋 Rekap Absensi"]
+
+        %% ═══ Guru ═══
+        UC11["📊 Dashboard Guru"]
+        UC12["📝 Absen Per Kelas"]
+        UC13["📚 Absen Per Mapel"]
+        UC14["✅ Input Status\nHadir Izin Sakit Alpa"]
+        UC15["📅 Lihat Jadwal\nKelas Diampu"]
+
+        %% ═══ Wali Kelas ═══
+        UC16["📊 Dashboard Wali Kelas"]
+        UC17["👀 Lihat Daftar Siswa"]
+        UC18["📝 Detail Siswa\n& Absensi"]
+        UC19["📋 Rekap Absensi\nKelas"]
+
+        %% ═══ Shared ═══
+        UC20["👮 Lihat Guru Piket"]
+        UC21["📅 Lihat Absensi Hari Ini"]
+    end
+
+    %% ═══ Actors ═══
+    ADMIN(("👑 Admin"))
+    GURU(("👨‍🏫 Guru"))
+    WALI(("👨‍🏫 Wali Kelas"))
+
+    %% ═══ Admin ═══
+    ADMIN --> UC01
+    ADMIN --> UC02
+    ADMIN --> UC03
+    ADMIN --> UC04
+    ADMIN --> UC05
+    ADMIN --> UC06
+    ADMIN --> UC07
+    ADMIN --> UC08
+    ADMIN --> UC09
+    ADMIN --> UC10
+    ADMIN --> UC20
+    ADMIN --> UC21
+
+    %% ═══ Guru ═══
+    GURU --> UC01
+    GURU --> UC02
+    GURU --> UC03
+    GURU --> UC11
+    GURU --> UC12
+    GURU --> UC10
+    GURU --> UC15
+    GURU --> UC20
+    GURU --> UC21
+
+    %% ═══ Wali Kelas ═══
+    WALI --> UC01
+    WALI --> UC02
+    WALI --> UC03
+    WALI --> UC16
+    WALI --> UC17
+    WALI --> UC18
+    WALI --> UC19
+    WALI --> UC09
+    WALI --> UC20
+
+    %% ═══ Include Extend ═══
+    UC12 -.->|"<<include>>"| UC13
+    UC13 -.->|"<<include>>"| UC14
+    UC12 -.->|"<<include>>"| UC21
+    UC04 -.->|"<<include>>"| UC21
+    UC11 -.->|"<<include>>"| UC21
+    UC16 -.->|"<<include>>"| UC21
+    UC06 -.->|"<<extend>>"| UC08
+    UC18 -.->|"<<extend>>"| UC19
+
+    %% ═══ Styling ═══
+    classDef actor fill:#FF9800,stroke:#E65100,stroke-width:2px,color:#fff,font-weight:bold
+    classDef adminUC fill:#FFF3E0,stroke:#FF9800,stroke-width:1.5px,color:#E65100
+    classDef guruUC fill:#E3F2FD,stroke:#2196F3,stroke-width:1.5px,color:#0D47A1
+    classDef waliUC fill:#FFF8E1,stroke:#FFC107,stroke-width:1.5px,color:#F57F17
+    classDef sharedUC fill:#F3E5F5,stroke:#9C27B0,stroke-width:1.5px,color:#6A1B9A
+    classDef authUC fill:#E8F5E9,stroke:#4CAF50,stroke-width:1.5px,color:#1B5E20
+
+    class ADMIN,GURU,WALI actor
+    class UC01,UC02 authUC
+    class UC03 sharedUC
+    class UC04,UC05,UC06,UC07,UC08,UC09,UC10 adminUC
+    class UC11,UC12,UC13,UC14,UC15 guruUC
+    class UC16,UC17,UC18,UC19 waliUC
+    class UC20,UC21 sharedUC

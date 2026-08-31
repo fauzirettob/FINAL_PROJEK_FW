@@ -16,7 +16,7 @@ class AuthProvider with ChangeNotifier {
   bool _isLoggingIn = false;
   bool _isReLoggingIn = false; // guard untuk re-login otomatis setelah tambah guru
 
-  // Kredensial admin disimpan sementara di memory (tidak di SharedPreferences)
+  // Kredensial admin disimpan di memory DAN SharedPreferences
   // Digunakan untuk re-login otomatis setelah menambah guru baru
   String? _adminEmail;
   String? _adminPassword;
@@ -28,6 +28,7 @@ class AuthProvider with ChangeNotifier {
   bool get isAuthenticated => _user != null;
   bool get isAdmin => _role == 'admin';
   bool get isGuru => _role == 'guru';
+  bool get isWaliKelas => _role == 'guru' && (_guru?.isWaliKelas ?? false);
 
   AuthProvider({
     FirebaseAuth? auth,
@@ -42,6 +43,20 @@ class AuthProvider with ChangeNotifier {
   Future<void> _onAuthStateChanged(User? user) async {
     // Jangan ganggu proses login, register, atau re-login yang sedang berlangsung.
     if (_isRegistering || _isLoggingIn || _isReLoggingIn) return;
+
+    // Restore kredensial admin dari SharedPreferences jika belum ada di memory
+    if (_adminEmail == null || _adminPassword == null) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        _adminEmail = prefs.getString('admin_email');
+        _adminPassword = prefs.getString('admin_password');
+        if (_adminEmail != null) {
+          debugPrint('✅ Kredensial admin di-restore dari SharedPreferences');
+        }
+      } catch (e) {
+        debugPrint('Gagal restore kredensial admin: $e');
+      }
+    }
 
     if (user == null) {
       _user = null;
@@ -195,9 +210,16 @@ class AuthProvider with ChangeNotifier {
                 'Akun admin tidak ditemukan. Silakan hubungi pengelola.');
           }
 
-          // Simpan kredensial admin di memory untuk re-login otomatis
+          // Simpan kredensial admin di memory DAN SharedPreferences
           _adminEmail = email;
           _adminPassword = password;
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('admin_email', email);
+            await prefs.setString('admin_password', password);
+          } catch (e) {
+            debugPrint('Gagal simpan kredensial admin ke SharedPreferences: $e');
+          }
           debugPrint('✅ Kredensial admin disimpan untuk re-login');
         } else {
           try {
@@ -256,7 +278,18 @@ class AuthProvider with ChangeNotifier {
   ///
   /// Mengembalikan `true` jika berhasil, `false` jika gagal.
   Future<bool> registerGuruByAdmin(
-      String email, String password, String nama, {String nip = ''}) async {
+      String email, String password, String nama, {String nip = '', List<String> mapelList = const [], List<String> kelasList = const [], String? waliKelas}) async {
+    // Coba restore dari SharedPreferences jika null
+    if (_adminEmail == null || _adminPassword == null) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        _adminEmail = prefs.getString('admin_email');
+        _adminPassword = prefs.getString('admin_password');
+      } catch (e) {
+        debugPrint('Gagal restore kredensial admin: $e');
+      }
+    }
+
     if (_adminEmail == null || _adminPassword == null) {
       debugPrint('❌ registerGuruByAdmin: kredensial admin tidak tersedia');
       return false;
@@ -273,7 +306,7 @@ class AuthProvider with ChangeNotifier {
     try {
       // 1. Buat akun guru (sign-out admin otomatis terjadi di dalam register)
       await register(email, password, nama,
-          role: 'guru', keepAdminSession: true, nip: nip);
+          role: 'guru', keepAdminSession: true, nip: nip, mapelList: mapelList, kelasList: kelasList, waliKelas: waliKelas);
 
       // 2. Re-login sebagai admin
       await login(savedAdminEmail, savedAdminPassword, role: 'admin');
@@ -297,7 +330,7 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> register(String email, String password, String nama,
-      {String role = 'guru', bool keepAdminSession = false, String nip = ''}) async {
+      {String role = 'guru', bool keepAdminSession = false, String nip = '', List<String> mapelList = const [], List<String> kelasList = const [], String? waliKelas}) async {
     _isRegistering = true;
     UserCredential? credential;
 
@@ -333,6 +366,9 @@ class AuthProvider with ChangeNotifier {
             nip: nip,
             nama: nama,
             email: email,
+            mapelList: mapelList,
+            kelasList: kelasList,
+            waliKelas: waliKelas,
             createdAt: DateTime.now(),
           );
           debugPrint('📤 Menyimpan guru ke Firestore: $uid');
@@ -391,15 +427,17 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> logout() async {
-    // Hapus kredensial admin yang tersimpan di memory
+    // Hapus kredensial admin dari memory DAN SharedPreferences
     _adminEmail = null;
     _adminPassword = null;
 
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('user_role');
+      await prefs.remove('admin_email');
+      await prefs.remove('admin_password');
     } catch (e) {
-      debugPrint('Gagal hapus role saat logout: $e');
+      debugPrint('Gagal hapus data saat logout: $e');
     }
     await _auth.signOut();
   }

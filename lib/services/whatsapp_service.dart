@@ -1,3 +1,4 @@
+import 'package:absensi_siswa/models/absensi.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
@@ -100,6 +101,9 @@ Guru SMA AS-SAMA AMBON
     required String namaSiswa,
     required String status,
     required String tanggal,
+    String? mataPelajaran,
+    String? guruNama,
+    String? jam,
     http.Client? client,
   }) async {
     final target = _formatNomor(hpOrtu);
@@ -113,19 +117,29 @@ Guru SMA AS-SAMA AMBON
 
     final displayStatus = statusLabels[status] ?? status;
 
+    final mapelLine = (mataPelajaran != null && mataPelajaran.isNotEmpty)
+        ? '📚 Mata Pelajaran: *$mataPelajaran*\n'
+        : '';
+    final guruLine = (guruNama != null && guruNama.isNotEmpty)
+        ? '👨‍🏫 Guru: *$guruNama*\n'
+        : '';
+    final jamLine = (jam != null && jam.isNotEmpty)
+        ? '⏰ Jam: $jam\n'
+        : '';
+
     final pesan = '''
-*Absensi Harian *
+*Absensi Harian SMA AS-SALAM AMBON*
 
 Yth. Orang Tua/Wali,
 
-Berikut  kehadiran putra/i Anda hari ini:
+Berikut kehadiran putra/i Anda hari ini:
 
 👤 Nama: *$namaSiswa*
 📋 Status: $displayStatus
-📅 Tanggal: $tanggal
-
+$mapelLine$guruLine📅 Tanggal: $tanggal
+$jamLine
 Terima kasih.
-- Guru SMA AS-SALAM AMBON 
+- Guru SMA AS-SALAM AMBON
 ''';
 
     debugPrint(

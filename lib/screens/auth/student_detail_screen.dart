@@ -8,6 +8,7 @@ import '../../services/firestore_service.dart';
 import '../../widgets/tilt3d.dart';
 import '../../models/siswa.dart';
 import '../../models/absensi.dart';
+import '../../models/jadwal_pelajaran.dart';
 import 'photo_gallery_screen.dart';
 
 class StudentDetailScreen extends StatefulWidget {
@@ -23,6 +24,61 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
   List<Absensi>? _absensiData;
 
   Siswa get _siswa => widget.siswa;
+
+  /// Widget untuk menampilkan preview mata pelajaran berdasarkan kelas
+  Widget _buildMapelPreview(String kelas) {
+    final mapelList = getMapelByKelas(kelas);
+    if (mapelList.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome, size: 14, color: AppColors.primary),
+              const SizedBox(width: 6),
+              Text(
+                'Mata Pelajaran untuk $kelas:',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            children: mapelList.map((m) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                m,
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.primary,
+                ),
+              ),
+            )).toList(),
+          ),
+        ],
+      ),
+    );
+  }
 
   Future<void> _showEditSiswaDialog() async {
     final fs = FirestoreService();
@@ -215,6 +271,11 @@ class _StudentDetailScreenState extends State<StudentDetailScreen> {
                                         ? 'Kategori harus dipilih'
                                         : null,
                                   ),
+                                  // Tampilkan mata pelajaran untuk kelas yang dipilih
+                                  if (kelasValue != null && kelasValue!.isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    _buildMapelPreview(kelasValue!),
+                                  ],
                                   const SizedBox(height: 12),
                                   TextFormField(
                                     controller: namaOrtuController,
