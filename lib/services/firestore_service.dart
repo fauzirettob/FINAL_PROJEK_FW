@@ -12,6 +12,13 @@ class FirestoreService {
   FirestoreService({FirebaseFirestore? firestore})
       : _db = firestore ?? FirebaseFirestore.instance;
 
+  /// Sanitize a string for use as a Firestore document ID.
+  /// Replaces characters that Firestore treats as path separators
+  /// (e.g. '/') with underscores.
+  static String _sanitizeDocId(String input) {
+    return input.replaceAll('/', '_');
+  }
+
   // --- SISWA ---
   Future<void> addSiswa(Siswa siswa) async {
     await _db.collection('siswa').doc(siswa.id).set(siswa.toMap());
@@ -343,7 +350,7 @@ class FirestoreService {
     String mataPelajaran,
     DateTime date,
   ) async {
-    final docId = '${kelas}_${mataPelajaran}_${DateFormat('yyyy-MM-dd').format(date)}';
+    final docId = '${kelas}_${_sanitizeDocId(mataPelajaran)}_${DateFormat('yyyy-MM-dd').format(date)}';
     final doc = await _db.collection('mapel_locks').doc(docId).get();
     return doc.exists && doc.data()?['isLocked'] == true;
   }
@@ -355,7 +362,7 @@ class FirestoreService {
     DateTime date,
     String lockedBy,
   ) async {
-    final docId = '${kelas}_${mataPelajaran}_${DateFormat('yyyy-MM-dd').format(date)}';
+    final docId = '${kelas}_${_sanitizeDocId(mataPelajaran)}_${DateFormat('yyyy-MM-dd').format(date)}';
     await _db.collection('mapel_locks').doc(docId).set({
       'kelas': kelas,
       'mataPelajaran': mataPelajaran,
@@ -392,7 +399,7 @@ class FirestoreService {
     String mataPelajaran,
     DateTime date,
   ) async {
-    final docId = '${kelas}_${mataPelajaran}_${DateFormat('yyyy-MM-dd').format(date)}';
+    final docId = '${kelas}_${_sanitizeDocId(mataPelajaran)}_${DateFormat('yyyy-MM-dd').format(date)}';
     final doc = await _db.collection('mapel_notifikasi').doc(docId).get();
     return doc.exists && doc.data()?['dikirim'] == true;
   }
@@ -403,7 +410,7 @@ class FirestoreService {
     String mataPelajaran,
     DateTime date,
   ) async {
-    final docId = '${kelas}_${mataPelajaran}_${DateFormat('yyyy-MM-dd').format(date)}';
+    final docId = '${kelas}_${_sanitizeDocId(mataPelajaran)}_${DateFormat('yyyy-MM-dd').format(date)}';
     await _db.collection('mapel_notifikasi').doc(docId).set({
       'kelas': kelas,
       'mataPelajaran': mataPelajaran,
@@ -488,5 +495,133 @@ class FirestoreService {
       );
     }
     await batch.commit();
+  }
+
+  // --- ATTENDANCE TIME OVERRIDES (TIME-LIMITED) ---
+
+  /// Cek apakah waktu absensi untuk kelas + mapel + tanggal sudah di-override
+  /// oleh admin dan masih berlaku (belum expired).
+  Future<bool> isAttendanceTimeOverridden(
+    String kelas,
+    String mataPelajaran,
+    DateTime date,
+  ) async {
+    final docId = '${kelas}_${_sanitizeDocId(mataPelajaran)}_${DateFormat('yyyy-MM-dd').format(date)}';
+    final doc = await _db.collection('attendance_overrides').doc(docId).get();
+    if (!doc.exists) return false;
+    final data = doc.data()!;
+    if (data['isOverridden'] != true) return false;
+    // Cek apakah masih berlaku (belum expired)
+    final expiresAt = data['expiresAt'] is Timestamp
+        ? (data['expiresAt'] as Timestamp).toDate()
+        : null;
+    if (expiresAt == null) return true; // Legacy override tanpa expiry
+    return DateTime.now().isBefore(expiresAt);
+  }
+
+  /// Override waktu absensi untuk kelas + mapel + tanggal tertentu
+  /// dengan durasi terbatas (dalam menit).
+  /// Dipanggil oleh admin agar guru bisa absensi meski waktu sudah lewat.
+  Future<void> overrideAttendanceTime(
+    String kelas,
+    String mataPelajaran,
+    DateTime date,
+    String overriddenBy,
+    {int durationMinutes = 10}
+  ) async {
+    final docId = '${kelas}_${_sanitizeDocId(mataPelajaran)}_${DateFormat('yyyy-MM-dd').format(date)}';
+    final now = DateTime.now();
+    await _db.collection('attendance_overrides').doc(docId).set({
+      'kelas': kelas,
+      'mataPelajaran': mataPelajaran,
+      'tanggal': Timestamp.fromDate(date),
+      'isOverridden': true,
+      'overriddenAt': Timestamp.fromDate(now),
+      'expiresAt': Timestamp.fromDate(now.add(Duration(minutes: durationMinutes))),
+      'overriddenBy': overriddenBy,
+      'durationMinutes': durationMinutes,
+    });
+  }
+
+  /// Ambil semua override aktif untuk tanggal tertentu.
+  Future<List<AttendanceOverride>> getActiveOverridesForDate(DateTime date) async {
+    final start = DateTime(date.year, date.month, date.day);
+    final end = start.add(const Duration(days: 1));
+    final snapshot = await _db
+        .collection('attendance_overrides')
+        .where('tanggal', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+        .where('tanggal', isLessThan: Timestamp.fromDate(end))
+        .get();
+    final now = DateTime.now();
+    return snapshot.docs
+        .map((doc) => AttendanceOverride.fromMap(doc.data()))
+        .where((o) => o.isOverridden && now.isBefore(o.expiresAt))
+        .toList();
+  }
+
+  /// Hapus override waktu absensi (kembalikan ke normal).
+  Future<void> removeAttendanceTimeOverride(
+    String kelas,
+    String mataPelajaran,
+    DateTime date,
+  ) async {
+    final docId = '${kelas}_${_sanitizeDocId(mataPelajaran)}_${DateFormat('yyyy-MM-dd').format(date)}';
+    await _db.collection('attendance_overrides').doc(docId).delete();
+  }
+}
+
+/// Model untuk data approval absensi ulang dengan batas waktu.
+class AttendanceOverride {
+  final String kelas;
+  final String mataPelajaran;
+  final DateTime tanggal;
+  final bool isOverridden;
+  final DateTime overriddenAt;
+  final DateTime expiresAt;
+  final String overriddenBy;
+
+  const AttendanceOverride({
+    required this.kelas,
+    required this.mataPelajaran,
+    required this.tanggal,
+    required this.isOverridden,
+    required this.overriddenAt,
+    required this.expiresAt,
+    required this.overriddenBy,
+  });
+
+  /// Apakah approval masih berlaku (belum expired)
+  bool get isActive => isOverridden && DateTime.now().isBefore(expiresAt);
+
+  /// Sisa waktu dalam detik
+  int get remainingSeconds {
+    final diff = expiresAt.difference(DateTime.now()).inSeconds;
+    return diff > 0 ? diff : 0;
+  }
+
+  /// Sisa waktu dalam format "X menit"
+  String get remainingTime {
+    final sisa = remainingSeconds;
+    if (sisa <= 0) return 'Habis';
+    final menit = (sisa / 60).ceil();
+    return '$menit menit';
+  }
+
+  factory AttendanceOverride.fromMap(Map<String, dynamic> data) {
+    return AttendanceOverride(
+      kelas: data['kelas'] ?? '',
+      mataPelajaran: data['mataPelajaran'] ?? '',
+      tanggal: data['tanggal'] is Timestamp
+          ? (data['tanggal'] as Timestamp).toDate()
+          : DateTime.now(),
+      isOverridden: data['isOverridden'] == true,
+      overriddenAt: data['overriddenAt'] is Timestamp
+          ? (data['overriddenAt'] as Timestamp).toDate()
+          : DateTime.now(),
+      expiresAt: data['expiresAt'] is Timestamp
+          ? (data['expiresAt'] as Timestamp).toDate()
+          : DateTime.now(),
+      overriddenBy: data['overriddenBy'] ?? '',
+    );
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:csv/csv.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -893,6 +894,17 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
       final csvContent = Csv().encode(rows);
       final bom = utf8.encode('\uFEFF');
       final bytes = [...bom, ...utf8.encode(csvContent)];
+
+      if (kIsWeb) {
+        if (!mounted) return;
+        ToastService.show(
+          context,
+          message: 'Export CSV belum didukung di web. Gunakan aplikasi mobile.',
+          backgroundColor: Colors.orange.shade600,
+          icon: Icons.info_outline,
+        );
+        return;
+      }
 
       final dir = await getTemporaryDirectory();
       final labelKelas = _selectedKelas ?? 'SemuaKelas';

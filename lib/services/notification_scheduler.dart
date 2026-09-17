@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
@@ -17,6 +18,7 @@ const String _periodicTaskUniqueName = 'com.absensi_siswa.periodic_notification'
 class NotificationScheduler {
   /// Inisialisasi Workmanager (panggil sekali di main())
   static Future<void> initialize() async {
+    if (kIsWeb) return; // Workmanager tidak didukung di web
     await Workmanager().initialize(
       callbackDispatcher,
     );
@@ -24,6 +26,7 @@ class NotificationScheduler {
 
   /// Register periodic task yang berjalan setiap 15 menit
   static Future<void> schedulePeriodicTask() async {
+    if (kIsWeb) return; // Workmanager tidak didukung di web
     await Workmanager().registerPeriodicTask(
       _periodicTaskUniqueName,
       _periodicTaskName,
@@ -37,6 +40,7 @@ class NotificationScheduler {
 
   /// Hentikan periodic task
   static Future<void> cancelPeriodicTask() async {
+    if (kIsWeb) return; // Workmanager tidak didukung di web
     await Workmanager().cancelByUniqueName(_periodicTaskUniqueName);
   }
 

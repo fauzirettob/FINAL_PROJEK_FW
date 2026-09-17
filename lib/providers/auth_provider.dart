@@ -160,17 +160,54 @@ class AuthProvider with ChangeNotifier {
       debugPrint('Error loading guru (fallback): $e');
     }
 
-    // Jika kedua collection gagal — jangan reset state yang sudah ada.
-    // User tetap terautentikasi; data bisa dimuat ulang nanti.
-    // Hanya bersihkan jika role memang belum pernah di-set.
-    if (_role == null) {
+    // ═══ SELF-REPAIR: profil tidak ditemukan di kedua collection ═══
+    // Buat profil guru sebagai default (guru tidak dibatasi seperti admin).
+    debugPrint('🔧 Self-repair (_onAuthStateChanged): profil tidak ditemukan untuk ${user.uid}, membuat profil guru...');
+    try {
+      final newGuru = Guru(
+        id: user.uid,
+        nama: _getDisplayName(),
+        email: user.email ?? '',
+        createdAt: DateTime.now(),
+      );
+      await _firestoreService.addGuru(newGuru);
+      _guru = newGuru;
+      _role = 'guru';
       _admin = null;
-      _guru = null;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_role', 'guru');
+      } catch (_) {}
+      debugPrint('✅ Self-repair: profil guru berhasil dibuat untuk ${user.uid}');
+    } catch (repairError) {
+      debugPrint('❌ Self-repair (_onAuthStateChanged) gagal: $repairError');
+      if (_role == null) {
+        _admin = null;
+        _guru = null;
+      }
     }
-    debugPrint(
-        'Warning: Authenticated user ${user.uid} has no admin/guru profile. '
-        'Existing role: $_role');
     notifyListeners();
+  }
+
+  /// Ambil nama tampilan dari Firebase Auth user untuk self-repair.
+  String _getDisplayName() {
+    final displayName = _auth.currentUser?.displayName;
+    if (displayName != null && displayName.isNotEmpty) return displayName;
+    final email = _auth.currentUser?.email;
+    if (email != null && email.contains('@')) {
+      return email.split('@').first;
+    }
+    return 'User';
+  }
+
+  /// Simpan role ke SharedPreferences.
+  Future<void> _saveRole(String role) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_role', role);
+    } catch (e) {
+      debugPrint('Gagal simpan role ke SharedPreferences: $e');
+    }
   }
 
   Future<void> login(String email, String password, {String? role}) async {
@@ -189,25 +226,55 @@ class AuthProvider with ChangeNotifier {
             _user = null;
             _admin = null;
             _role = null;
-            // Jangan signOut di sini — outer catch block sudah handle
             rethrow;
           }
           if (_admin != null) {
             _role = 'admin';
             _guru = null;
-            try {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setString('user_role', 'admin');
-            } catch (e) {
-              debugPrint('Gagal simpan role admin: $e');
-            }
+            await _saveRole('admin');
           } else {
-            _user = null;
-            _admin = null;
-            _role = null;
-            await _auth.signOut();
-            throw Exception(
-                'Akun admin tidak ditemukan. Silakan hubungi pengelola.');
+            // ═══ SELF-REPAIR ═══
+            // Dokumen admin tidak ditemukan. Cek collection guru sebagai
+            // fallback — mungkin user memilih role yang salah.
+            debugPrint('🔧 Self-repair: admin doc tidak ditemukan untuk $uid, cek collection guru...');
+            try {
+              _guru = await _firestoreService.getGuru(uid);
+            } catch (_) {
+              _guru = null;
+            }
+
+            if (_guru != null) {
+              // Ditemukan di collection guru — role yang dipilih salah.
+              // Auto-login sebagai guru.
+              debugPrint('🔧 Self-repair: ditemukan sebagai GURU. Auto-login sebagai guru.');
+              _role = 'guru';
+              _admin = null;
+              await _saveRole('guru');
+            } else {
+              // Tidak ditemukan di kedua collection — buat profil admin baru.
+              debugPrint('🔧 Self-repair: tidak ada profil. Membuat profil admin baru untuk $uid...');
+              try {
+                final newAdmin = Admin(
+                  id: uid,
+                  nama: _getDisplayName(),
+                  email: email,
+                  createdAt: DateTime.now(),
+                );
+                await _firestoreService.addAdmin(newAdmin);
+                _admin = newAdmin;
+                _role = 'admin';
+                _guru = null;
+                await _saveRole('admin');
+                debugPrint('✅ Self-repair: profil admin berhasil dibuat untuk $uid');
+              } catch (repairError) {
+                debugPrint('❌ Self-repair gagal membuat profil admin: $repairError');
+                _user = null;
+                _admin = null;
+                _role = null;
+                await _auth.signOut();
+                rethrow;
+              }
+            }
           }
 
           // Simpan kredensial admin di memory DAN SharedPreferences
@@ -228,24 +295,64 @@ class AuthProvider with ChangeNotifier {
             _user = null;
             _guru = null;
             _role = null;
-            // Jangan signOut di sini — outer catch block sudah handle
             rethrow;
           }
           if (_guru != null) {
             _role = 'guru';
             _admin = null;
-            try {
-              final prefs = await SharedPreferences.getInstance();
-              await prefs.setString('user_role', 'guru');
-            } catch (e) {
-              debugPrint('Gagal simpan role guru: $e');
-            }
+            await _saveRole('guru');
           } else {
-            _user = null;
-            _guru = null;
-            _role = null;
-            await _auth.signOut();
-            throw Exception('Akun guru tidak ditemukan.');
+            // ═══ SELF-REPAIR ═══
+            // Dokumen guru tidak ditemukan. Cek collection admin sebagai
+            // fallback — mungkin user memilih role yang salah.
+            debugPrint('🔧 Self-repair: guru doc tidak ditemukan untuk $uid, cek collection admin...');
+            try {
+              _admin = await _firestoreService.getAdmin(uid);
+            } catch (_) {
+              _admin = null;
+            }
+
+            if (_admin != null) {
+              // Ditemukan di collection admin — role yang dipilih salah.
+              // Auto-login sebagai admin.
+              debugPrint('🔧 Self-repair: ditemukan sebagai ADMIN. Auto-login sebagai admin.');
+              _role = 'admin';
+              _guru = null;
+              await _saveRole('admin');
+
+              // Simpan kredensial admin untuk re-login
+              _adminEmail = email;
+              _adminPassword = password;
+              try {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setString('admin_email', email);
+                await prefs.setString('admin_password', password);
+              } catch (_) {}
+            } else {
+              // Tidak ditemukan di kedua collection — buat profil guru baru.
+              debugPrint('🔧 Self-repair: tidak ada profil. Membuat profil guru baru untuk $uid...');
+              try {
+                final newGuru = Guru(
+                  id: uid,
+                  nama: _getDisplayName(),
+                  email: email,
+                  createdAt: DateTime.now(),
+                );
+                await _firestoreService.addGuru(newGuru);
+                _guru = newGuru;
+                _role = 'guru';
+                _admin = null;
+                await _saveRole('guru');
+                debugPrint('✅ Self-repair: profil guru berhasil dibuat untuk $uid');
+              } catch (repairError) {
+                debugPrint('❌ Self-repair gagal membuat profil guru: $repairError');
+                _user = null;
+                _guru = null;
+                _role = null;
+                await _auth.signOut();
+                rethrow;
+              }
+            }
           }
         }
 

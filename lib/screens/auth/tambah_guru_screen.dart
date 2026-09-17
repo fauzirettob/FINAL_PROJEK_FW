@@ -27,6 +27,7 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   List<String> _selectedKelas = [];
+  List<String> _selectedMapel = [];
   String? _selectedWaliKelas;
   bool _isWaliKelas = false; // true = daftar sebagai Wali Kelas
 
@@ -35,8 +36,14 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
   static const int _warnaKelas = 0xFF1565C0; // Biru
   static const int _warnaWaliKelas = 0xFFFF9800; // Orange
 
-  /// Mata pelajaran yang di-derive otomatis berdasarkan kelas yang dipilih
-  List<String> get _autoMapel => getMapelByMultipleKelas(_selectedKelas);
+  /// Semua mata pelajaran yang tersedia untuk kelas yang dipilih
+  List<String> get _availableMapel => getMapelByMultipleKelas(_selectedKelas);
+
+  /// Hapus mapel yang sudah tidak tersedia (kelas tidak dipilih lagi)
+  void _syncSelectedMapel() {
+    final available = _availableMapel.toSet();
+    _selectedMapel.removeWhere((m) => !available.contains(m));
+  }
 
   @override
   void dispose() {
@@ -52,8 +59,6 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
     return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
   }
 
-
-
   Future<void> _handleTambahGuru() async {
     final nip = _nipController.text.trim();
     final nama = _namaController.text.trim();
@@ -61,7 +66,11 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
     final password = _passwordController.text;
     final confirmPassword = _confirmPasswordController.text;
 
-    if (nip.isEmpty || nama.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+    if (nip.isEmpty ||
+        nama.isEmpty ||
+        email.isEmpty ||
+        password.isEmpty ||
+        confirmPassword.isEmpty) {
       _showToast('Mohon lengkapi semua data', color: Colors.red);
       return;
     }
@@ -91,6 +100,11 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
       return;
     }
 
+    if (_selectedMapel.isEmpty) {
+      _showToast('Pilih minimal satu mata pelajaran yang diampu', color: Colors.red);
+      return;
+    }
+
     if (_isWaliKelas && _selectedWaliKelas == null) {
       _showToast('Pilih kelas untuk dijadikan Wali Kelas', color: Colors.red);
       return;
@@ -100,9 +114,12 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
 
     try {
       final authProvider = context.read<AuthProvider>();
-      final mapelList = _autoMapel;
-      final success = await authProvider.registerGuruByAdmin(email, password, nama,
-          nip: nip, mapelList: mapelList, kelasList: _selectedKelas,
+      final mapelList = _selectedMapel;
+      final success = await authProvider.registerGuruByAdmin(
+          email, password, nama,
+          nip: nip,
+          mapelList: mapelList,
+          kelasList: _selectedKelas,
           waliKelas: _selectedWaliKelas);
 
       if (!mounted) return;
@@ -116,13 +133,15 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
         _passwordController.clear();
         _confirmPasswordController.clear();
         setState(() {
-        _selectedKelas = [];
-        _selectedWaliKelas = null;
-        _isWaliKelas = false;
+          _selectedKelas = [];
+          _selectedMapel = [];
+          _selectedWaliKelas = null;
+          _isWaliKelas = false;
         });
         await _showSuccessDialog();
       } else {
-        _showToast('Gagal menambah guru. Kredensial admin tidak tersedia.', color: Colors.red);
+        _showToast('Gagal menambah guru. Kredensial admin tidak tersedia.',
+            color: Colors.red);
       }
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -176,7 +195,9 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
       context,
       message: message,
       backgroundColor: color ?? Colors.green.shade600,
-      icon: color != null && color != Colors.green ? Icons.error_outline : Icons.check_circle,
+      icon: color != null && color != Colors.green
+          ? Icons.error_outline
+          : Icons.check_circle,
     );
   }
 
@@ -196,16 +217,19 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
               decoration: BoxDecoration(
                 color: AppColors.primary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                border:
+                    Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline, color: AppColors.primary, size: 20),
+                  const Icon(Icons.info_outline,
+                      color: AppColors.primary, size: 20),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      'Pilih kelas untuk guru. Mata pelajaran akan otomatis ditentukan berdasarkan jadwal.',
-                      style: TextStyle(color: AppColors.primary.withValues(alpha: 0.8), fontSize: 12),
+                    child: Text(                          'Pilih kelas yang diajar, lalu pilih mata pelajaran secara manual.',
+                      style: TextStyle(
+                          color: AppColors.primary.withValues(alpha: 0.8),
+                          fontSize: 12),
                     ),
                   ),
                 ],
@@ -214,11 +238,13 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
             const SizedBox(height: 24),
 
             // ═══ PILIHAN ROLE ═══
-            const Text('Daftar Sebagai', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            const Text('Daftar Sebagai',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
             const SizedBox(height: 4),
             Text(
               'Pilih role guru yang ingin didaftarkan',
-              style: TextStyle(color: AppColors.muted.withValues(alpha: 0.7), fontSize: 12),
+              style: TextStyle(
+                  color: AppColors.muted.withValues(alpha: 0.7), fontSize: 12),
             ),
             const SizedBox(height: 10),
             Row(
@@ -239,7 +265,9 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                             : AppColors.card,
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                          color: !_isWaliKelas ? AppColors.primary : AppColors.border,
+                          color: !_isWaliKelas
+                              ? AppColors.primary
+                              : AppColors.border,
                           width: !_isWaliKelas ? 2 : 1,
                         ),
                       ),
@@ -257,7 +285,9 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                             child: Icon(
                               Icons.school_rounded,
                               size: 28,
-                              color: !_isWaliKelas ? AppColors.primary : AppColors.muted,
+                              color: !_isWaliKelas
+                                  ? AppColors.primary
+                                  : AppColors.muted,
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -266,7 +296,9 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: !_isWaliKelas ? AppColors.primary : AppColors.foreground,
+                              color: !_isWaliKelas
+                                  ? AppColors.primary
+                                  : AppColors.foreground,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -282,9 +314,11 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                           if (!_isWaliKelas) ...[
                             const SizedBox(height: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: AppColors.primary.withValues(alpha: 0.15),
+                                color:
+                                    AppColors.primary.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: const Text(
@@ -316,7 +350,9 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                             : AppColors.card,
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                          color: _isWaliKelas ? Color(_warnaWaliKelas) : AppColors.border,
+                          color: _isWaliKelas
+                              ? Color(_warnaWaliKelas)
+                              : AppColors.border,
                           width: _isWaliKelas ? 2 : 1,
                         ),
                       ),
@@ -327,14 +363,17 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                             height: 52,
                             decoration: BoxDecoration(
                               color: _isWaliKelas
-                                  ? Color(_warnaWaliKelas).withValues(alpha: 0.15)
+                                  ? Color(_warnaWaliKelas)
+                                      .withValues(alpha: 0.15)
                                   : AppColors.muted.withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(14),
                             ),
                             child: Icon(
                               Icons.star_rounded,
                               size: 28,
-                              color: _isWaliKelas ? Color(_warnaWaliKelas) : AppColors.muted,
+                              color: _isWaliKelas
+                                  ? Color(_warnaWaliKelas)
+                                  : AppColors.muted,
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -343,7 +382,9 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: _isWaliKelas ? Color(_warnaWaliKelas) : AppColors.foreground,
+                              color: _isWaliKelas
+                                  ? Color(_warnaWaliKelas)
+                                  : AppColors.foreground,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -352,16 +393,19 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                             style: TextStyle(
                               fontSize: 11,
                               color: _isWaliKelas
-                                  ? Color(_warnaWaliKelas).withValues(alpha: 0.7)
+                                  ? Color(_warnaWaliKelas)
+                                      .withValues(alpha: 0.7)
                                   : AppColors.muted,
                             ),
                           ),
                           if (_isWaliKelas) ...[
                             const SizedBox(height: 8),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: Color(_warnaWaliKelas).withValues(alpha: 0.15),
+                                color: Color(_warnaWaliKelas)
+                                    .withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: const Text(
@@ -384,7 +428,8 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
             const SizedBox(height: 24),
 
             // NIP
-            const Text('NIP', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            const Text('NIP',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
             const SizedBox(height: 8),
             TextField(
               controller: _nipController,
@@ -401,7 +446,8 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
             const SizedBox(height: 20),
 
             // Nama Lengkap
-            const Text('Nama Lengkap', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            const Text('Nama Lengkap',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
             const SizedBox(height: 8),
             TextField(
               controller: _namaController,
@@ -413,7 +459,8 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
             const SizedBox(height: 20),
 
             // Email
-            const Text('Email', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            const Text('Email',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
             const SizedBox(height: 8),
             TextField(
               controller: _emailController,
@@ -426,7 +473,8 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
             const SizedBox(height: 20),
 
             // Password
-            const Text('Password', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            const Text('Password',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
             const SizedBox(height: 8),
             TextField(
               controller: _passwordController,
@@ -435,15 +483,19 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                 hintText: 'Masukkan password',
                 prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: IconButton(
-                  icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
-                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  icon: Icon(_obscurePassword
+                      ? Icons.visibility_off
+                      : Icons.visibility),
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
                 ),
               ),
             ),
             const SizedBox(height: 20),
 
             // Konfirmasi Password
-            const Text('Konfirmasi Password', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            const Text('Konfirmasi Password',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
             const SizedBox(height: 8),
             TextField(
               controller: _confirmPasswordController,
@@ -452,19 +504,22 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                 hintText: 'Ulangi password',
                 prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: IconButton(
-                  icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility),
-                  onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                  icon: Icon(_obscureConfirm
+                      ? Icons.visibility_off
+                      : Icons.visibility),
+                  onPressed: () =>
+                      setState(() => _obscureConfirm = !_obscureConfirm),
                 ),
               ),
             ),
-            const SizedBox(height: 24),
-
-            // ═══ KELAS ═══
-            const Text('Kelas yang Diajar', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            const SizedBox(height: 20),
+            const Text('Kelas yang Diajar',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
             const SizedBox(height: 4),
             Text(
               'Ketuk kategori untuk membuka, lalu pilih kelas. Mapel otomatis ditentukan.',
-              style: TextStyle(color: AppColors.muted.withValues(alpha: 0.7), fontSize: 12),
+              style: TextStyle(
+                  color: AppColors.muted.withValues(alpha: 0.7), fontSize: 12),
             ),
             const SizedBox(height: 10),
             Wrap(
@@ -481,6 +536,7 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                         if (_selectedWaliKelas == kelas) {
                           _selectedWaliKelas = null;
                         }
+                        _syncSelectedMapel();
                       } else {
                         _selectedKelas.add(kelas);
                       }
@@ -488,7 +544,8 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                   },
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
                       color: isSelected
                           ? warna.withValues(alpha: 0.15)
@@ -503,7 +560,9 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          isSelected ? Icons.check_circle : Icons.circle_outlined,
+                          isSelected
+                              ? Icons.check_circle
+                              : Icons.circle_outlined,
                           size: 16,
                           color: isSelected ? warna : AppColors.muted,
                         ),
@@ -512,7 +571,8 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                           'Kelas $kelas',
                           style: TextStyle(
                             fontSize: 13,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            fontWeight:
+                                isSelected ? FontWeight.w700 : FontWeight.w500,
                             color: isSelected ? warna : AppColors.foreground,
                           ),
                         ),
@@ -535,76 +595,89 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
             ],
             const SizedBox(height: 20),
 
-            // ═══ MATA PELAJARAN (AUTO-DERIVED) ═══
+            // ═══ MATA PELAJARAN (MANUAL SELECTION) ═══
             if (_selectedKelas.isNotEmpty) ...[
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.auto_awesome, size: 16, color: AppColors.primary),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Mata Pelajaran (Otomatis)',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            color: AppColors.primary,
-                          ),
+              const Text('Mata Pelajaran yang Diampu',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              const SizedBox(height: 4),
+              Text(
+                'Pilih mata pelajaran yang akan diampu guru ini',
+                style: TextStyle(
+                    color: AppColors.muted.withValues(alpha: 0.7), fontSize: 12),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _availableMapel.map((mapel) {
+                  final isSelected = _selectedMapel.contains(mapel);
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        if (isSelected) {
+                          _selectedMapel.remove(mapel);
+                        } else {
+                          _selectedMapel.add(mapel);
+                        }
+                      });
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppColors.primary.withValues(alpha: 0.15)
+                            : AppColors.card,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isSelected
+                              ? AppColors.primary
+                              : AppColors.border,
+                          width: isSelected ? 2 : 1,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Berdasarkan jadwal untuk kelas: ${_selectedKelas.join(", ")}',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.muted.withValues(alpha: 0.7),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: _autoMapel.map((mapel) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: AppColors.primary.withValues(alpha: 0.2),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isSelected
+                                ? Icons.check_circle
+                                : Icons.circle_outlined,
+                            size: 16,
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.muted,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            mapel,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight:
+                                  isSelected ? FontWeight.w700 : FontWeight.w500,
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : AppColors.foreground,
                             ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.check_circle, size: 12, color: AppColors.primary),
-                              const SizedBox(width: 4),
-                              Text(
-                                mapel,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
+                  );
+                }).toList(),
               ),
+              if (_selectedMapel.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  '${_selectedMapel.length} mata pelajaran dipilih',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.accent,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
               const SizedBox(height: 20),
             ],
 
@@ -616,14 +689,16 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                 decoration: BoxDecoration(
                   color: Color(_warnaWaliKelas).withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Color(_warnaWaliKelas).withValues(alpha: 0.2)),
+                  border: Border.all(
+                      color: Color(_warnaWaliKelas).withValues(alpha: 0.2)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.star_rounded, size: 18, color: Color(0xFFFF9800)),
+                        const Icon(Icons.star_rounded,
+                            size: 18, color: Color(0xFFFF9800)),
                         const SizedBox(width: 8),
                         const Text(
                           'Pilih Kelas Wali Kelas',
@@ -657,14 +732,18 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                           },
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? const Color(0xFFFF9800).withValues(alpha: 0.15)
+                                  ? const Color(0xFFFF9800)
+                                      .withValues(alpha: 0.15)
                                   : AppColors.card,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: isSelected ? const Color(0xFFFF9800) : AppColors.border,
+                                color: isSelected
+                                    ? const Color(0xFFFF9800)
+                                    : AppColors.border,
                                 width: isSelected ? 2 : 1,
                               ),
                             ),
@@ -672,17 +751,25 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
-                                  isSelected ? Icons.star_rounded : Icons.star_border_rounded,
+                                  isSelected
+                                      ? Icons.star_rounded
+                                      : Icons.star_border_rounded,
                                   size: 20,
-                                  color: isSelected ? const Color(0xFFFF9800) : AppColors.muted,
+                                  color: isSelected
+                                      ? const Color(0xFFFF9800)
+                                      : AppColors.muted,
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Kelas $kelas',
                                   style: TextStyle(
                                     fontSize: 14,
-                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                    color: isSelected ? const Color(0xFFFF9800) : AppColors.foreground,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                    color: isSelected
+                                        ? const Color(0xFFFF9800)
+                                        : AppColors.foreground,
                                   ),
                                 ),
                               ],
@@ -697,7 +784,8 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
               if (_selectedWaliKelas != null) ...[
                 const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFF9800).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
@@ -705,7 +793,8 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.star_rounded, size: 14, color: Color(0xFFFF9800)),
+                      const Icon(Icons.star_rounded,
+                          size: 14, color: Color(0xFFFF9800)),
                       const SizedBox(width: 6),
                       Text(
                         'Wali Kelas $_selectedWaliKelas',
@@ -741,15 +830,22 @@ class _TambahGuruScreenState extends State<TambahGuruScreen> {
                   children: [
                     if (_isLoading)
                       const SizedBox(
-                        width: 20, height: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
                       )
                     else
                       const Icon(Icons.person_add),
                     const SizedBox(width: 8),
                     Text(
-                      _isLoading ? 'Menyimpan...' : (_isWaliKelas ? 'Buat Akun Wali Kelas' : 'Buat Akun Guru'),
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      _isLoading
+                          ? 'Menyimpan...'
+                          : (_isWaliKelas
+                              ? 'Buat Akun Wali Kelas'
+                              : 'Buat Akun Guru'),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                   ],
                 ),

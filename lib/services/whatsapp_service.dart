@@ -1,4 +1,3 @@
-import 'package:absensi_siswa/models/absensi.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
@@ -116,6 +115,7 @@ Guru SMA AS-SAMA AMBON
     };
 
     final displayStatus = statusLabels[status] ?? status;
+    final isAlpa = status == 'alpa';
 
     final mapelLine = (mataPelajaran != null && mataPelajaran.isNotEmpty)
         ? '📚 Mata Pelajaran: *$mataPelajaran*\n'
@@ -127,7 +127,28 @@ Guru SMA AS-SAMA AMBON
         ? '⏰ Jam: $jam\n'
         : '';
 
-    final pesan = '''
+    final String pesan;
+    if (isAlpa) {
+      pesan = '''
+⚠️ *PERHATIAN: TIDAK HADIR* ⚠️
+
+*Absensi Harian SMA AS-SALAM AMBON*
+
+Yth. Orang Tua/Wali,
+
+Diberitahukan bahwa putra/i Anda:
+
+👤 Nama: *$namaSiswa*
+📋 Status: $displayStatus
+$mapelLine$guruLine📅 Tanggal: $tanggal
+$jamLine
+Mohon perhatian dan konfirmasi ke pihak sekolah jika ada kendala.
+
+Terima kasih.
+- Guru SMA AS-SALAM AMBON
+''';
+    } else {
+      pesan = '''
 *Absensi Harian SMA AS-SALAM AMBON*
 
 Yth. Orang Tua/Wali,
@@ -141,6 +162,7 @@ $jamLine
 Terima kasih.
 - Guru SMA AS-SALAM AMBON
 ''';
+    }
 
     debugPrint(
         '📤 WA kirimNotifikasiRekapAbsensi → target=$target, nama=$namaSiswa, status=$status');

@@ -41,7 +41,7 @@ exports.addGuru = onCall(async (request) => {
   }
 
   const adminUid = request.auth.uid;
-  const { email, password, nama } = request.data;
+  const { email, password, nama, nip, mapelList, kelasList, waliKelas } = request.data;
 
   // ── 2. Validasi input ──
   if (!email || typeof email !== "string" || email.trim().length === 0) {
@@ -100,7 +100,11 @@ exports.addGuru = onCall(async (request) => {
       .set({
         nama: nama.trim(),
         email: email.trim(),
+        nip: nip || '',
         role: "guru",
+        mapelList: Array.isArray(mapelList) ? mapelList : [],
+        kelasList: Array.isArray(kelasList) ? kelasList : [],
+        waliKelas: waliKelas || null,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
   } catch (firestoreError) {
@@ -174,9 +178,24 @@ exports.resetGuruPassword = onCall(async (request) => {
   } catch (authError) {
     logger.error("resetGuruPassword: Gagal update password:", authError);
     if (authError.code === "auth/user-not-found") {
-      throw new HttpsError("not-found", "Akun guru tidak ditemukan di Firebase Auth.");
+      // Firebase Auth user tidak ditemukan — buat baru dengan password yang sama
+      logger.info(`resetGuruPassword: Auth user ${guruUid} tidak ada, membuat baru...`);
+      try {
+        const guruData = guruDoc.data();
+        await admin.auth().createUser({
+          uid: guruUid,
+          email: guruData.email,
+          password: newPassword,
+          displayName: guruData.nama,
+        });
+        logger.info(`resetGuruPassword: Auth user ${guruUid} berhasil dibuat baru.`);
+      } catch (createError) {
+        logger.error("resetGuruPassword: Gagal membuat auth user baru:", createError);
+        throw new HttpsError("internal", `Gagal membuat akun guru: ${createError.message}`);
+      }
+    } else {
+      throw new HttpsError("internal", `Gagal update password: ${authError.message}`);
     }
-    throw new HttpsError("internal", `Gagal update password: ${authError.message}`);
   }
 
   logger.info(`resetGuruPassword: Password guru ${guruUid} berhasil direset oleh admin ${request.auth.uid}`);
@@ -184,5 +203,58 @@ exports.resetGuruPassword = onCall(async (request) => {
   return {
     success: true,
     message: "Password guru berhasil direset.",
+  };
+});
+
+/**
+ * changeMyPassword - Cloud Function callable dari Flutter.
+ *
+ * Guru mengubah password akun Firebase Auth mereka sendiri.
+ * Menggunakan Firebase Admin SDK untuk update password
+ * tanpa perlu re-authenticate.
+ *
+ * Parameter:
+ *   newPassword (string) - Password baru (minimal 6 karakter)
+ *
+ * Return:
+ *   { success: true, message: string }
+ */
+exports.changeMyPassword = onCall(async (request) => {
+  // 1. Wajib login
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Anda harus login.");
+  }
+
+  const uid = request.auth.uid;
+  const { newPassword } = request.data;
+
+  // 2. Validasi input
+  if (!newPassword || typeof newPassword !== "string" || newPassword.length < 6) {
+    throw new HttpsError("invalid-argument", "Password minimal 6 karakter.");
+  }
+
+  // 3. Pastikan user adalah guru atau admin
+  const guruDoc = await db.collection("guru").doc(uid).get();
+  const adminDoc = await db.collection("admin").doc(uid).get();
+
+  if (!guruDoc.exists && !adminDoc.exists) {
+    throw new HttpsError("permission-denied", "Hanya guru atau admin yang bisa mengubah password.");
+  }
+
+  // 4. Update password via Firebase Auth Admin SDK
+  try {
+    await admin.auth().updateUser(uid, {
+      password: newPassword,
+    });
+  } catch (authError) {
+    logger.error("changeMyPassword: Gagal update password:", authError);
+    throw new HttpsError("internal", `Gagal update password: ${authError.message}`);
+  }
+
+  logger.info(`changeMyPassword: Password user ${uid} berhasil diubah sendiri.`);
+
+  return {
+    success: true,
+    message: "Password berhasil diubah.",
   };
 });

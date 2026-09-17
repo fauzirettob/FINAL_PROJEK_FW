@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -220,6 +222,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return;
     }
 
+    if (kIsWeb) {
+      if (!mounted) return;
+      ToastService.show(context, message: 'Upload foto belum didukung di web', backgroundColor: Colors.orange.shade600, icon: Icons.info_outline);
+      return;
+    }
+
     try {
       final imageSource = source == 'camera' ? ImageSource.camera : ImageSource.gallery;
       final XFile? picked = await _picker.pickImage(
@@ -296,9 +304,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final auth = context.read<AuthProvider>();
 
     try {
-      final localFile = File(fotoUrl);
-      if (await localFile.exists()) {
-        await localFile.delete();
+      if (!kIsWeb) {
+        try {
+          final localFile = File(fotoUrl);
+          if (await localFile.exists()) {
+            await localFile.delete();
+          }
+        } catch (_) {}
       }
 
       if (isAdmin) {
@@ -328,6 +340,221 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ToastService.show(
         context,
         message: 'Gagal hapus foto: $e',
+        backgroundColor: Colors.red.shade600,
+        icon: Icons.error_outline,
+      );
+    }
+  }
+
+  // ─── Ubah Password ────────────────────────────────────────
+  Future<void> _changePassword() async {
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool isLoading = false;
+    bool obscureNew = true;
+    bool obscureConfirm = true;
+
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Container(
+          height: MediaQuery.of(ctx).size.height * 0.55,
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(24),
+              topRight: Radius.circular(24),
+            ),
+          ),
+          child: Form(
+            key: formKey,
+            child: Column(
+              children: [
+                // Handle bar
+                Container(
+                  margin: const EdgeInsets.only(top: 10),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                // Header
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.lock_reset_rounded,
+                            color: AppColors.primary, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Ubah Password',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: AppColors.foreground,
+                              ),
+                            ),
+                            Text(
+                              'Masukkan password baru Anda',
+                              style: TextStyle(
+                                  color: AppColors.muted, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(ctx),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.border.withValues(alpha: 0.5),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.close,
+                              size: 18, color: AppColors.muted),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Form Fields
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Password Baru
+                        const Text('Password Baru', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                        const SizedBox(height: 6),
+                        TextFormField(
+                          controller: newPasswordController,
+                          obscureText: obscureNew,
+                          decoration: InputDecoration(
+                            hintText: 'Masukan password baru',
+                            prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                            suffixIcon: IconButton(
+                              icon: Icon(obscureNew ? Icons.visibility_off : Icons.visibility, size: 20),
+                              onPressed: () => setModalState(() => obscureNew = !obscureNew),
+                            ),
+                            isDense: true,
+                          ),
+                          validator: (v) {
+                            if (v == null || v.isEmpty) return 'Password tidak boleh kosong';
+                            if (v.length < 6) return 'Password minimal 6 karakter';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        // Konfirmasi Password
+                        const Text('Konfirmasi Password', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                        const SizedBox(height: 6),
+                        TextFormField(
+                          controller: confirmPasswordController,
+                          obscureText: obscureConfirm,
+                          decoration: InputDecoration(
+                            hintText: 'Ulangi password baru',
+                            prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                            suffixIcon: IconButton(
+                              icon: Icon(obscureConfirm ? Icons.visibility_off : Icons.visibility, size: 20),
+                              onPressed: () => setModalState(() => obscureConfirm = !obscureConfirm),
+                            ),
+                            isDense: true,
+                          ),
+                          validator: (v) {
+                            if (v == null || v.isEmpty) return 'Konfirmasi tidak boleh kosong';
+                            if (v != newPasswordController.text) return 'Password tidak cocok';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                    ),
+                  ),
+                ),
+                // Footer
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: isLoading ? null : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        setModalState(() => isLoading = true);
+                        Navigator.pop(ctx, true);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: isLoading
+                          ? const SizedBox(
+                              width: 20, height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Text(
+                              'Ubah Password',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (result != true) return;
+
+    final newPassword = newPasswordController.text.trim();
+
+    try {
+      final callable = FirebaseFunctions.instance.httpsCallable('changeMyPassword');
+      await callable.call({
+        'newPassword': newPassword,
+      });
+      if (!mounted) return;
+      ToastService.show(
+        context,
+        message: 'Password berhasil diubah!',
+      );
+    } on FirebaseFunctionsException catch (e) {
+      if (!mounted) return;
+      ToastService.show(
+        context,
+        message: e.message ?? 'Gagal mengubah password',
+        backgroundColor: Colors.red.shade600,
+        icon: Icons.error_outline,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ToastService.show(
+        context,
+        message: 'Gagal mengubah password: $e',
         backgroundColor: Colors.red.shade600,
         icon: Icons.error_outline,
       );
@@ -372,7 +599,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       backgroundImage: fotoUrl != null && fotoUrl.isNotEmpty
                           ? (fotoUrl.startsWith('http')
                               ? NetworkImage(fotoUrl) as ImageProvider
-                              : (File(fotoUrl).existsSync()
+                              : (!kIsWeb && File(fotoUrl).existsSync()
                                   ? FileImage(File(fotoUrl))
                                   : null))
                           : null,
@@ -492,6 +719,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
               value: createdAt != null
                   ? DateFormat('dd MMMM yyyy').format(createdAt)
                   : '-',
+            ),
+
+            const SizedBox(height: 24),
+
+            // --- Ubah Password ---
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Ubah Password',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: AppColors.foreground,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton.icon(
+                onPressed: _changePassword,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: BorderSide(color: AppColors.primary.withValues(alpha: 0.3)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                icon: const Icon(Icons.lock_outline_rounded),
+                label: const Text(
+                  'Ubah Password',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                ),
+              ),
             ),
 
             const SizedBox(height: 24),

@@ -57,7 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 20),
               Text(
-                "Absensi Siswa",
+                "Absensi Siswa SMA AS-Salam",
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary,
@@ -189,68 +189,72 @@ class _LoginScreenState extends State<LoginScreen> {
                   maxTilt: 8,
                   enableHover: !_isLoading,
                   child: ElevatedButton(
-                  onPressed: _isLoading
-                      ? null
-                      : () async {
-                          setState(() => _isLoading = true);
-                          try {
-                            await context.read<AuthProvider>().login(
-                                  _emailController.text,
-                                  _passController.text,
-                                  role: _selectedRole,
-                                );
-                            if (!context.mounted) return;
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                builder: (_) => const MainShell(),
-                              ),
-                            );
-                          } catch (e) {
-                            if (!context.mounted) return;
-                            String pesan;
-                            if (e is FirebaseAuthException) {
-                              switch (e.code) {
-                                case 'invalid-credential':
-                                case 'user-not-found':
-                                case 'wrong-password':
-                                  pesan = 'Email atau password salah. Periksa kembali data Anda.';
-                                  break;
-                                case 'invalid-email':
-                                  pesan = 'Format email tidak valid.';
-                                  break;
-                                case 'user-disabled':
-                                  pesan = 'Akun ini telah dinonaktifkan.';
-                                  break;
-                                case 'too-many-requests':
-                                  pesan = 'Terlalu banyak percobaan. Coba lagi nanti.';
-                                  break;
-                                default:
-                                  pesan = e.message ?? 'Login gagal. Coba lagi.';
+                    onPressed: _isLoading
+                        ? null
+                        : () async {
+                            setState(() => _isLoading = true);
+                            try {
+                              await context.read<AuthProvider>().login(
+                                    _emailController.text,
+                                    _passController.text,
+                                    role: _selectedRole,
+                                  );
+                              if (!context.mounted) return;
+                              Navigator.of(context).pushReplacement(
+                                MaterialPageRoute(
+                                  builder: (_) => const MainShell(),
+                                ),
+                              );
+                            } catch (e) {
+                              if (!context.mounted) return;
+                              String pesan;
+                              if (e is FirebaseAuthException) {
+                                switch (e.code) {
+                                  case 'invalid-credential':
+                                  case 'user-not-found':
+                                  case 'wrong-password':
+                                    pesan =
+                                        'Email atau password salah. Periksa kembali data Anda.';
+                                    break;
+                                  case 'invalid-email':
+                                    pesan = 'Format email tidak valid.';
+                                    break;
+                                  case 'user-disabled':
+                                    pesan = 'Akun ini telah dinonaktifkan.';
+                                    break;
+                                  case 'too-many-requests':
+                                    pesan =
+                                        'Terlalu banyak percobaan. Coba lagi nanti.';
+                                    break;
+                                  default:
+                                    pesan =
+                                        e.message ?? 'Login gagal. Coba lagi.';
+                                }
+                              } else {
+                                pesan = e.toString();
                               }
-                            } else {
-                              pesan = e.toString();
+                              ToastService.show(
+                                context,
+                                message: pesan,
+                                backgroundColor: Colors.red.shade600,
+                                icon: Icons.error_outline,
+                              );
+                            } finally {
+                              if (context.mounted) {
+                                setState(() => _isLoading = false);
+                              }
                             }
-                            ToastService.show(
-                              context,
-                              message: pesan,
-                              backgroundColor: Colors.red.shade600,
-                              icon: Icons.error_outline,
-                            );
-                          } finally {
-                            if (context.mounted) {
-                              setState(() => _isLoading = false);
-                            }
-                          }
-                        },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                  ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text("Login", style: TextStyle(color: Colors.white)),
+                    child: _isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text("Login",
+                            style: TextStyle(color: Colors.white)),
                   ),
                 ),
               ),

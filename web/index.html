@@ -118,13 +118,22 @@
 
   <script>
     // Hilangkan loading screen setelah Flutter siap
-    window.addEventListener('flutter-first-frame', function() {
+    function removeLoadingScreen() {
       const screen = document.getElementById('loading-screen');
-      if (screen) {
+      if (screen && screen.style.display !== 'none') {
         screen.classList.add('fade-out');
         setTimeout(function() { screen.style.display = 'none'; }, 500);
       }
-    });
+    }
+
+    // Method 1: Listen for Flutter first frame
+    window.addEventListener('flutter-first-frame', removeLoadingScreen);
+
+    // Method 2: Listen for flutter-view ready (Flutter 3.22+)
+    window.addEventListener('flutter-ready', removeLoadingScreen);
+
+    // Fallback: Force remove after 5 seconds regardless
+    setTimeout(removeLoadingScreen, 5000);
   </script>
 </body>
 </html>

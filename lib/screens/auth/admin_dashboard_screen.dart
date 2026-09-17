@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -52,13 +53,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return word.substring(0, 2).toUpperCase();
   }
 
-
   // ─── Upload Foto Profil ─────────────────────────────────────
   Future<void> _uploadFotoProfil() async {
     final auth = context.read<AuthProvider>();
     if (!auth.isAdmin) return;
     final admin = auth.admin;
     if (admin == null) return;
+
+    if (kIsWeb) {
+      if (!mounted) return;
+      ToastService.show(context,
+          message: 'Upload foto belum didukung di web',
+          backgroundColor: Colors.orange.shade600,
+          icon: Icons.info_outline);
+      return;
+    }
 
     final existingFotoUrl = admin.fotoUrl;
 
@@ -185,8 +194,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     if (admin == null || admin.fotoUrl == null) return;
 
     try {
-      final localFile = File(admin.fotoUrl!);
-      if (await localFile.exists()) await localFile.delete();
+      if (!kIsWeb) {
+        try {
+          final localFile = File(admin.fotoUrl!);
+          if (await localFile.exists()) await localFile.delete();
+        } catch (_) {}
+      }
 
       await _fs.updateAdmin(admin.id, {'fotoUrl': null});
       if (!mounted) return;
@@ -223,77 +236,79 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(24),
-                decoration: const BoxDecoration(
-                  gradient: AppColors.gradientMain,
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(32),
-                    bottomRight: Radius.circular(32),
+                  decoration: const BoxDecoration(
+                    gradient: AppColors.gradientMain,
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(32),
+                      bottomRight: Radius.circular(32),
+                    ),
                   ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          "$sapaan ☀️",
-                          style: const TextStyle(
-                              color: Colors.white70, fontSize: 14),
-                        ),
-                        GestureDetector(
-                          onTap: _uploadFotoProfil,
-                          child: CircleAvatar(
-                            radius: 22,
-                            backgroundColor:
-                                Colors.white.withValues(alpha: 0.2),
-                            backgroundImage: admin?.fotoUrl != null &&
-                                    admin!.fotoUrl!.isNotEmpty
-                                ? (admin!.fotoUrl!.startsWith('http')
-                                    ? NetworkImage(admin!.fotoUrl!)
-                                        as ImageProvider
-                                    : (File(admin!.fotoUrl!).existsSync()
-                                        ? FileImage(File(admin!.fotoUrl!))
-                                        : null))
-                                : null,
-                            child: admin?.fotoUrl == null ||
-                                    admin!.fotoUrl!.isEmpty
-                                ? Text(
-                                    _getInitials(namaAdmin),
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 18),
-                                  )
-                                : null,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "$sapaan ☀️",
+                            style: const TextStyle(
+                                color: Colors.white70, fontSize: 14),
                           ),
+                          GestureDetector(
+                            onTap: _uploadFotoProfil,
+                            child: CircleAvatar(
+                              radius: 22,
+                              backgroundColor:
+                                  Colors.white.withValues(alpha: 0.2),
+                              backgroundImage: admin?.fotoUrl != null &&
+                                      admin!.fotoUrl!.isNotEmpty
+                                  ? (admin!.fotoUrl!.startsWith('http')
+                                      ? NetworkImage(admin!.fotoUrl!)
+                                          as ImageProvider
+                                      : (!kIsWeb
+                                          ? (File(admin!.fotoUrl!).existsSync()
+                                              ? FileImage(File(admin!.fotoUrl!))
+                                              : null)
+                                          : null))
+                                  : null,
+                              child: admin?.fotoUrl == null ||
+                                      admin!.fotoUrl!.isEmpty
+                                  ? Text(
+                                      _getInitials(namaAdmin),
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 18),
+                                    )
+                                  : null,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        namaAdmin,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      namaAdmin,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(8),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          'Administrator',
+                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
                       ),
-                      child: const Text(
-                        'Administrator',
-                        style: TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -429,7 +444,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     subtitle: "Kelola data siswa untuk absensi",
                     onTap: () => _navigateToTab(2),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   _AdminMenuCard(
                     icon: Icons.table_chart_rounded,
                     color: const Color(0xFF8B5CF6),
@@ -486,7 +501,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   /// Hari ini dalam format uppercase (SENIN, SELASA, dll.)
   String _getHariIni() {
     const hariMap = {
-      1: 'SENIN', 2: 'SELASA', 3: 'RABU', 4: 'KAMIS', 5: 'JUMAT',
+      1: 'SENIN',
+      2: 'SELASA',
+      3: 'RABU',
+      4: 'KAMIS',
+      5: 'JUMAT',
     };
     return hariMap[DateTime.now().weekday] ?? 'SENIN';
   }
@@ -496,15 +515,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     try {
       final data = await _fs.getGuruPiket();
       if (data.isEmpty) {
-        return guruPiketDefault
-            .map((d) => GuruPiket.fromMap(d))
-            .toList();
+        return guruPiketDefault.map((d) => GuruPiket.fromMap(d)).toList();
       }
       return data;
     } catch (e) {
-      return guruPiketDefault
-          .map((d) => GuruPiket.fromMap(d))
-          .toList();
+      return guruPiketDefault.map((d) => GuruPiket.fromMap(d)).toList();
     }
   }
 
@@ -514,12 +529,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       builder: (context, snapshot) {
         final guruPiket = snapshot.data ?? [];
         final hariIni = _getHariIni();
-        final piketHariIni = guruPiket
-            .where((p) => p.hari.toUpperCase() == hariIni)
-            .toList();
-        final namaPiket = piketHariIni
-            .expand((p) => p.namaGuru)
-            .toList();
+        final piketHariIni =
+            guruPiket.where((p) => p.hari.toUpperCase() == hariIni).toList();
+        final namaPiket = piketHariIni.expand((p) => p.namaGuru).toList();
 
         return Container(
           width: double.infinity,
@@ -589,7 +601,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   runSpacing: 8,
                   children: namaPiket.map((nama) {
                     return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
                         color: const Color(0xFF0EA5E9).withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(10),
@@ -918,8 +931,8 @@ class _AdminMenuCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: const TextStyle(
-                          color: AppColors.muted, fontSize: 12),
+                      style:
+                          const TextStyle(color: AppColors.muted, fontSize: 12),
                     ),
                   ],
                 ),

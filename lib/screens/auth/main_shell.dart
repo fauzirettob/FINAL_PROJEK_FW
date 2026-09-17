@@ -239,8 +239,7 @@ class _MainShellState extends State<MainShell> {
 
   Widget _buildWaliKelasShell() {
     final screens = <Widget>[
-      WaliKelasDashboardScreen(
-          onNavigateToTab: switchToTab),
+      WaliKelasDashboardScreen(onNavigateToTab: switchToTab),
       const StudentsScreen(),
       const RekapAbsensiScreen(),
       const ProfileScreen(),

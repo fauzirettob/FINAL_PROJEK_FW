@@ -1,4 +1,6 @@
 import 'dart:io';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -12,6 +14,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/toast_service.dart';
 import '../../widgets/animations.dart';
 import '../../widgets/tilt3d.dart';
+import 'jadwal_guru_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final void Function(int tabIndex)? onNavigateToTab;
@@ -149,6 +152,15 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
+    if (kIsWeb) {
+      if (!mounted) return;
+      ToastService.show(context,
+          message: 'Upload foto belum didukung di web',
+          backgroundColor: Colors.orange.shade600,
+          icon: Icons.info_outline);
+      return;
+    }
+
     try {
       final imageSource =
           source == 'camera' ? ImageSource.camera : ImageSource.gallery;
@@ -228,10 +240,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final auth = context.read<AuthProvider>();
 
     try {
-      // Hapus file lokal
-      final localFile = File(fotoUrl);
-      if (await localFile.exists()) {
-        await localFile.delete();
+      // Hapus file lokal (hanya di mobile)
+      if (!kIsWeb) {
+        try {
+          final localFile = File(fotoUrl);
+          if (await localFile.exists()) {
+            await localFile.delete();
+          }
+        } catch (_) {}
       }
 
       if (isAdmin) {
@@ -287,133 +303,133 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(24),
-                decoration: const BoxDecoration(
-                  gradient: AppColors.gradientMain,
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(32),
-                    bottomRight: Radius.circular(32),
+                  decoration: const BoxDecoration(
+                    gradient: AppColors.gradientMain,
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(32),
+                      bottomRight: Radius.circular(32),
+                    ),
                   ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          "$sapaan 👋",
-                          style: const TextStyle(
-                              color: Colors.white70, fontSize: 14),
-                        ),
-                        GestureDetector(
-                          onTap: _uploadFotoProfil,
-                          child: CircleAvatar(
-                            radius: 22,
-                            backgroundColor:
-                                Colors.white.withValues(alpha: 0.2),
-                            backgroundImage: fotoUrl != null &&
-                                    fotoUrl.isNotEmpty
-                                ? (fotoUrl.startsWith('http')
-                                    ? NetworkImage(fotoUrl) as ImageProvider
-                                    : (File(fotoUrl).existsSync()
-                                        ? FileImage(File(fotoUrl))
-                                        : null))
-                                : null,
-                            child: fotoUrl == null || fotoUrl.isEmpty
-                                ? Text(
-                                    _getInitials(displayNama),
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
-                                    ),
-                                  )
-                                : null,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "$sapaan 👋",
+                            style: const TextStyle(
+                                color: Colors.white70, fontSize: 14),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      displayNama,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                          GestureDetector(
+                            onTap: _uploadFotoProfil,
+                            child: CircleAvatar(
+                              radius: 22,
+                              backgroundColor:
+                                  Colors.white.withValues(alpha: 0.2),
+                              backgroundImage: fotoUrl != null &&
+                                      fotoUrl.isNotEmpty
+                                  ? (fotoUrl.startsWith('http')
+                                      ? NetworkImage(fotoUrl) as ImageProvider
+                                      : (!kIsWeb && File(fotoUrl).existsSync()
+                                          ? FileImage(File(fotoUrl))
+                                          : null))
+                                  : null,
+                              child: fotoUrl == null || fotoUrl.isEmpty
+                                  ? Text(
+                                      _getInitials(displayNama),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    // ── Card Kehadiran Hari Ini ──
-                    const SizedBox(height: 16),
-                    StreamBuilder<List<Absensi>>(
-                      stream: _fs.getAbsensiHariIni(DateTime.now()),
-                      builder: (context, snapshot) {
-                        final absensiHariIni = snapshot.data ?? [];
-                        final total = absensiHariIni.length;
-                        final hadir = absensiHariIni
-                            .where((a) => a.status == 'hadir')
-                            .length;
-                        final persen = total > 0
-                            ? ((hadir / total) * 100).toStringAsFixed(0)
-                            : '0';
+                      const SizedBox(height: 8),
+                      Text(
+                        displayNama,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      // ── Card Kehadiran Hari Ini ──
+                      const SizedBox(height: 16),
+                      StreamBuilder<List<Absensi>>(
+                        stream: _fs.getAbsensiHariIni(DateTime.now()),
+                        builder: (context, snapshot) {
+                          final absensiHariIni = snapshot.data ?? [];
+                          final total = absensiHariIni.length;
+                          final hadir = absensiHariIni
+                              .where((a) => a.status == 'hadir')
+                              .length;
+                          final persen = total > 0
+                              ? ((hadir / total) * 100).toStringAsFixed(0)
+                              : '0';
 
-                        return Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.2)),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    "Kehadiran Hari Ini",
-                                    style: TextStyle(
-                                        color: Colors.white70, fontSize: 12),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    "$persen%",
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.bold,
+                          return Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.2)),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      "Kehadiran Hari Ini",
+                                      style: TextStyle(
+                                          color: Colors.white70, fontSize: 12),
                                     ),
-                                  ),
-                                  Text(
-                                    "$total siswa",
-                                    style: const TextStyle(
-                                        color: Colors.white60, fontSize: 11),
-                                  ),
-                                ],
-                              ),
-                              Row(
-                                children: [
-                                  _MiniStat(
-                                    label: "H",
-                                    value: hadir.toString(),
-                                    color: Colors.greenAccent,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  _MiniStat(
-                                    label: "T",
-                                    value: (total - hadir).toString(),
-                                    color: Colors.orangeAccent,
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      "$persen%",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      "$total siswa",
+                                      style: const TextStyle(
+                                          color: Colors.white60, fontSize: 11),
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    _MiniStat(
+                                      label: "H",
+                                      value: hadir.toString(),
+                                      color: Colors.greenAccent,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    _MiniStat(
+                                      label: "T",
+                                      value: (total - hadir).toString(),
+                                      color: Colors.orangeAccent,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -432,7 +448,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 } else {
                   final guruKelas = auth.guru?.kelasList ?? [];
                   filteredSiswa = guruKelas.isNotEmpty
-                      ? semuaSiswa.where((s) => guruKelas.contains(s.kelas)).toList()
+                      ? semuaSiswa
+                          .where((s) => guruKelas.contains(s.kelas))
+                          .toList()
                       : semuaSiswa;
                 }
                 final totalSiswa = filteredSiswa.length;
@@ -476,9 +494,26 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const SizedBox(height: 20),
 
+            // ── Menu Cepat Guru ──
+            EntranceAnimation(
+              delay: const Duration(milliseconds: 180),
+              child: _buildMenuCepatGuru(),
+            ),
+
+            const SizedBox(height: 20),
+
+            // ── Jadwal Hari Ini (untuk guru) ──
+            if (!isAdmin) ...[
+              EntranceAnimation(
+                delay: const Duration(milliseconds: 200),
+                child: _buildJadwalHariIni(),
+              ),
+              const SizedBox(height: 20),
+            ],
+
             // ── Guru Piket Hari Ini ──
             EntranceAnimation(
-              delay: const Duration(milliseconds: 200),
+              delay: const Duration(milliseconds: 220),
               child: _buildGuruPiketSection(),
             ),
 
@@ -496,7 +531,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 } else {
                   final guruKelas = auth.guru?.kelasList ?? [];
                   semuaSiswa = guruKelas.isNotEmpty
-                      ? semuaSiswaData.where((s) => guruKelas.contains(s.kelas)).toList()
+                      ? semuaSiswaData
+                          .where((s) => guruKelas.contains(s.kelas))
+                          .toList()
                       : semuaSiswaData;
                 }
                 return StreamBuilder<List<Absensi>>(
@@ -513,7 +550,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       'sakit': 2,
                       'alpa': 3,
                     };
-                    final bestStatusMap = <String, int>{}; // siswaId -> priority
+                    final bestStatusMap =
+                        <String, int>{}; // siswaId -> priority
                     for (final a in absensiHariIni) {
                       final priority = statusPriority[a.status] ?? 4;
                       final existing = bestStatusMap[a.siswaId];
@@ -572,29 +610,323 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ─── Menu Cepat Guru ──────────────────────────────────────────
+  Widget _buildMenuCepatGuru() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Menu Guru',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: AppColors.foreground,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _MenuCard(
+          icon: Icons.schedule_rounded,
+          color: const Color(0xFF0EA5E9),
+          label: 'Jadwal Mengajar',
+          subtitle: 'Lihat jadwal mengajar Anda',
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const JadwalGuruScreen()),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  // ─── Jadwal Hari Ini (per hari sesuai jadwal guru) ───────────────
+  Widget _buildJadwalHariIni() {
+    const hariMap = {
+      1: 'SENIN',
+      2: 'SELASA',
+      3: 'RABU',
+      4: 'KAMIS',
+      5: 'JUMAT',
+    };
+    final hariIni = hariMap[DateTime.now().weekday] ?? 'SENIN';
+    final isJumat = hariIni == 'JUMAT';
+    final auth = context.read<AuthProvider>();
+    final guru = auth.guru;
+    final guruKelas = guru?.kelasList ?? [];
+    final guruMapel = guru?.mapelList ?? [];
+
+    // Konversi kelas guru ke tingkat
+    final Set<String> tingkatSet = {};
+    for (final k in guruKelas) {
+      final tingkat = kelasToTingkat(k);
+      if (tingkat != null) tingkatSet.add(tingkat);
+    }
+
+    // Ambil jadwal sesuai hari
+    final rawSlots = isJumat ? jadwalDefaultJumat : jadwalDefaultSeninKamis;
+
+    // Filter slot yang punya mapel sesuai guru
+    final slotsAktif = <Map<String, dynamic>>[];
+    for (final slot in rawSlots) {
+      final keterangan = (slot['keterangan'] as String?) ?? '';
+      final lower = keterangan.toLowerCase();
+      final isNonPel = lower.contains('istirahat') ||
+          lower.contains('ishoma') ||
+          lower.contains('apel') ||
+          lower.contains('break') ||
+          lower.contains('morning') ||
+          lower.contains('dhuha') ||
+          lower.contains('lunch');
+
+      if (isNonPel || isJumat) {
+        // Non-pelajaran & Jumat: tampilkan semua
+        slotsAktif.add({...slot, '_matched': <String, String>{}});
+        continue;
+      }
+
+      final rawMapelPerKelas = slot['mapelPerKelas'];
+      if (rawMapelPerKelas == null) {
+        slotsAktif.add({...slot, '_matched': <String, String>{}});
+        continue;
+      }
+
+      final mapelPerKelas = Map<String, dynamic>.from(rawMapelPerKelas as Map);
+      final matched = <String, String>{};
+      for (final tingkat in tingkatSet) {
+        final list = mapelPerKelas[tingkat];
+        if (list is List) {
+          for (final m in list) {
+            final name = m?.toString() ?? '';
+            if (guruMapel.contains(name)) {
+              matched[tingkat] = name;
+              break;
+            }
+          }
+        }
+      }
+      if (matched.isNotEmpty) {
+        slotsAktif.add({...slot, '_matched': matched});
+      }
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0EA5E9).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.schedule_rounded,
+                    color: Color(0xFF0EA5E9), size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Jadwal Hari Ini',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                        color: AppColors.foreground,
+                      ),
+                    ),
+                    Text(
+                      hariIni,
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const JadwalGuruScreen()),
+                  );
+                },
+                child: const Text('Lihat Semua →'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (slotsAktif.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.muted.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Text(
+                'Tidak ada jadwal mengajar hari ini',
+                style: TextStyle(color: AppColors.muted, fontSize: 12),
+              ),
+            )
+          else
+            ...slotsAktif.map((slot) {
+              final matched = slot['_matched'] as Map<String, String>? ?? {};
+              final keterangan = slot['keterangan']?.toString() ?? '';
+              final isNonPel2 =
+                  keterangan.toLowerCase().contains('istirahat') ||
+                      keterangan.toLowerCase().contains('ishoma') ||
+                      keterangan.toLowerCase().contains('apel') ||
+                      keterangan.toLowerCase().contains('break') ||
+                      keterangan.toLowerCase().contains('lunch');
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: matched.isNotEmpty
+                      ? const Color(0xFF0EA5E9).withValues(alpha: 0.04)
+                      : isNonPel2
+                          ? AppColors.muted.withValues(alpha: 0.03)
+                          : AppColors.muted.withValues(alpha: 0.02),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: matched.isNotEmpty
+                        ? const Color(0xFF0EA5E9).withValues(alpha: 0.12)
+                        : AppColors.border,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: matched.isNotEmpty
+                            ? const Color(0xFF0EA5E9).withValues(alpha: 0.1)
+                            : AppColors.muted.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        slot['jamMulai']?.toString() ?? '',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: matched.isNotEmpty
+                              ? const Color(0xFF0EA5E9)
+                              : AppColors.muted,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Jam ke-${slot['jamKe']}',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: AppColors.muted,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (matched.isNotEmpty)
+                            ...matched.entries.map((e) => Padding(
+                                  padding: const EdgeInsets.only(top: 1),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 4, vertical: 1),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF0EA5E9)
+                                              .withValues(alpha: 0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(3),
+                                        ),
+                                        child: Text(
+                                          e.key,
+                                          style: const TextStyle(
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.w800,
+                                            color: Color(0xFF0EA5E9),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          e.value,
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.foreground,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ))
+                          else
+                            Text(
+                              keterangan,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: isNonPel2
+                                    ? AppColors.muted.withValues(alpha: 0.6)
+                                    : AppColors.muted.withValues(alpha: 0.5),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
   // ─── Load Guru Piket dengan fallback ──────────────────────────
   Future<List<GuruPiket>> _loadGuruPiket() async {
     try {
       final data = await _fs.getGuruPiket();
       if (data.isEmpty) {
         // Fallback ke default jika Firestore kosong
-        return guruPiketDefault
-            .map((d) => GuruPiket.fromMap(d))
-            .toList();
+        return guruPiketDefault.map((d) => GuruPiket.fromMap(d)).toList();
       }
       return data;
     } catch (e) {
       // Fallback ke default jika error
-      return guruPiketDefault
-          .map((d) => GuruPiket.fromMap(d))
-          .toList();
+      return guruPiketDefault.map((d) => GuruPiket.fromMap(d)).toList();
     }
   }
 
   // ─── Guru Piket Hari Ini ──────────────────────────────────────
   Widget _buildGuruPiketSection() {
     const hariMap = {
-      1: 'SENIN', 2: 'SELASA', 3: 'RABU', 4: 'KAMIS', 5: 'JUMAT',
+      1: 'SENIN',
+      2: 'SELASA',
+      3: 'RABU',
+      4: 'KAMIS',
+      5: 'JUMAT',
     };
     final hariIni = hariMap[DateTime.now().weekday] ?? 'SENIN';
 
@@ -602,12 +934,9 @@ class _HomeScreenState extends State<HomeScreen> {
       future: _loadGuruPiket(),
       builder: (context, snapshot) {
         final guruPiket = snapshot.data ?? [];
-        final piketHariIni = guruPiket
-            .where((p) => p.hari.toUpperCase() == hariIni)
-            .toList();
-        final namaPiket = piketHariIni
-            .expand((p) => p.namaGuru)
-            .toList();
+        final piketHariIni =
+            guruPiket.where((p) => p.hari.toUpperCase() == hariIni).toList();
+        final namaPiket = piketHariIni.expand((p) => p.namaGuru).toList();
 
         return Container(
           width: double.infinity,
@@ -677,7 +1006,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   runSpacing: 8,
                   children: namaPiket.map((nama) {
                     return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
                         color: const Color(0xFF0EA5E9).withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(10),
@@ -973,7 +1303,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(Icons.check_circle_rounded,
-                                  size: 48, color: color.withValues(alpha: 0.3)),
+                                  size: 48,
+                                  color: color.withValues(alpha: 0.3)),
                               const SizedBox(height: 12),
                               Text(
                                 'Tidak ada siswa',
@@ -1280,6 +1611,76 @@ class _MiniStat extends StatelessWidget {
 }
 
 // ── Stat Card ──
+class _MenuCard extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String label;
+  final String subtitle;
+  final VoidCallback? onTap;
+
+  const _MenuCard({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.subtitle,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tilt3D(
+      child: PressableScale(
+        onTap: onTap,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                        color: AppColors.foreground,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style:
+                          const TextStyle(color: AppColors.muted, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: AppColors.muted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _StatCard extends StatelessWidget {
   final IconData icon;
   final String label;

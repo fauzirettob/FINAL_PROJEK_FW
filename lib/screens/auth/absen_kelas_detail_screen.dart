@@ -9,6 +9,7 @@ import '../../widgets/awesome_dialogs.dart';
 import '../../widgets/tilt3d.dart';
 import '../../models/siswa.dart';
 import '../../models/absensi.dart';
+import '../../models/jadwal_pelajaran.dart';
 import '../../providers/auth_provider.dart';
 
 class AbsenKelasDetailScreen extends StatefulWidget {
@@ -32,7 +33,8 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
 
   List<Siswa> _siswaList = [];
   List<Absensi> _existingAbsensi = [];
-  Map<String, String> _statusMap = {}; // siswaId -> 'hadir', 'izin', 'sakit', 'alpa'
+  Map<String, String> _statusMap =
+      {}; // siswaId -> 'hadir', 'izin', 'sakit', 'alpa'
 
   bool _isLoading = true;
   bool _isSaving = false;
@@ -41,6 +43,12 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
   bool _notifikasiSent = false;
   bool get _hasMataPelajaran =>
       widget.mataPelajaran != null && widget.mataPelajaran!.isNotEmpty;
+
+  /// Jadwal waktu untuk mata pelajaran ini
+  List<JadwalMapelInfo> _jadwalList = [];
+
+  /// Apakah waktu absensi masih valid
+  bool _isWaktuAbsensiValid = true;
 
   // ── Status Configurations ──
   static const _statusList = [
@@ -80,13 +88,6 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
     }
   }
 
-  String _statusLabel(String key) {
-    for (final s in _statusList) {
-      if (s['key'] == key) return s['fullLabel'] as String;
-    }
-    return key;
-  }
-
   @override
   void initState() {
     super.initState();
@@ -94,6 +95,13 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
   }
 
   bool get _isSemuaKelas => widget.kelas.isEmpty;
+
+  /// Konversi tingkat (X/XI/XII) ke angka kelas (10/11/12).
+  /// Jika sudah angka, kembali apa adanya.
+  String get _resolvedKelas {
+    const map = {'X': '10', 'XI': '11', 'XII': '12'};
+    return map[widget.kelas] ?? widget.kelas;
+  }
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
@@ -103,15 +111,18 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
 
       // Filter siswa berdasarkan kelas atau semua kelas guru
       List<Siswa> siswaList;
-      if (_isSemuaKelas && auth.guru != null && auth.guru!.kelasList.isNotEmpty) {
+      if (_isSemuaKelas &&
+          auth.guru != null &&
+          auth.guru!.kelasList.isNotEmpty) {
         // Ambil semua siswa dari kelas-kelas guru
         final guruKelas = auth.guru!.kelasList;
-        siswaList = semuaSiswa.where((s) => guruKelas.contains(s.kelas)).toList();
+        siswaList =
+            semuaSiswa.where((s) => guruKelas.contains(s.kelas)).toList();
       } else if (_isSemuaKelas) {
         // Jika guru tidak punya kelasList, tampilkan semua siswa
         siswaList = semuaSiswa;
       } else {
-        siswaList = semuaSiswa.where((s) => s.kelas == widget.kelas).toList();
+        siswaList = semuaSiswa.where((s) => s.kelas == _resolvedKelas).toList();
       }
 
       // Load absensi
@@ -120,36 +131,62 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
         // Load semua absensi untuk tanggal ini lalu filter di Dart
         final allAbsensi = await _fs.getAbsensiByDate(widget.tanggal);
         if (_hasMataPelajaran) {
-          existingAbsensi = allAbsensi.where((a) => a.mataPelajaran == widget.mataPelajaran).toList();
+          existingAbsensi = allAbsensi
+              .where((a) => a.mataPelajaran == widget.mataPelajaran)
+              .toList();
         } else {
           existingAbsensi = allAbsensi;
         }
       } else {
         existingAbsensi = _hasMataPelajaran
             ? await _fs.getAbsensiByKelasAndMapelAndDate(
-                widget.kelas,
+                _resolvedKelas,
                 widget.mataPelajaran!,
                 widget.tanggal,
               )
             : await _fs.getAbsensiByKelasAndDate(
-                widget.kelas,
+                _resolvedKelas,
                 widget.tanggal,
               );
       }
 
       // Lock status (semua kelas = tidak dikunci per kelas)
-      final isLocked = _isSemuaKelas ? false : (_hasMataPelajaran
-          ? await _fs.isMapelLocked(
-              widget.kelas, widget.mataPelajaran!, widget.tanggal)
-          : await _fs.isKelasLocked(widget.kelas, widget.tanggal));
+      final isLocked = _isSemuaKelas
+          ? false
+          : (_hasMataPelajaran
+              ? await _fs.isMapelLocked(
+                  _resolvedKelas, widget.mataPelajaran!, widget.tanggal)
+              : await _fs.isKelasLocked(_resolvedKelas, widget.tanggal));
 
       // Notifikasi status
       final notifSent = _hasMataPelajaran
           ? await _fs.isNotifikasiMapelSent(
-              widget.kelas, widget.mataPelajaran!, widget.tanggal)
+              _resolvedKelas, widget.mataPelajaran!, widget.tanggal)
           : (_isSemuaKelas
               ? false
-              : await _fs.isNotifikasiKelasSent(widget.kelas, widget.tanggal));
+              : await _fs.isNotifikasiKelasSent(
+                  _resolvedKelas, widget.tanggal));
+
+      // Cek jadwal waktu absensi + override
+      bool waktuValid = true;
+      List<JadwalMapelInfo> jadwalInfo = [];
+      bool isOverridden = false;
+      if (_hasMataPelajaran) {
+        jadwalInfo = getJadwalMapelByTingkat(widget.kelas, widget.mataPelajaran!);
+        isOverridden = await _fs.isAttendanceTimeOverridden(
+            widget.kelas, widget.mataPelajaran!, widget.tanggal);
+        if (jadwalInfo.isNotEmpty) {
+          bool adaYangValid = false;
+          for (final j in jadwalInfo) {
+            if (isWaktuAbsensiValid(j)) {
+              adaYangValid = true;
+              break;
+            }
+          }
+          // Waktu valid jika jadwal masih berlaku ATAU sudah di-override admin
+          waktuValid = adaYangValid || isOverridden;
+        }
+      }
 
       // Build status map from existing absensi
       final statusMap = <String, String>{};
@@ -176,6 +213,8 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
           _statusMap = statusMap;
           _isLocked = isLocked;
           _notifikasiSent = notifSent;
+          _jadwalList = jadwalInfo;
+          _isWaktuAbsensiValid = waktuValid;
           _isLoading = false;
         });
       }
@@ -195,6 +234,15 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
 
   void _setStatus(String siswaId, String status) {
     if (_isLocked || _isSendingNotif || _notifikasiSent) return;
+    if (!_isWaktuAbsensiValid && _hasMataPelajaran) {
+      ToastService.show(
+        context,
+        message: '⏰ Waktu absensi sudah lewat',
+        backgroundColor: Colors.orange.shade700,
+        icon: Icons.access_time_filled_rounded,
+      );
+      return;
+    }
     setState(() {
       _statusMap[siswaId] = status;
     });
@@ -202,6 +250,17 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
 
   Future<bool> _simpanAbsensi({bool showToast = true}) async {
     if (_isSaving || _isSendingNotif || _notifikasiSent) return false;
+    if (!_isWaktuAbsensiValid && _hasMataPelajaran) {
+      if (showToast && mounted) {
+        ToastService.show(
+          context,
+          message: '⏰ Waktu absensi sudah lewat, tidak bisa menyimpan',
+          backgroundColor: Colors.orange.shade700,
+          icon: Icons.access_time_filled_rounded,
+        );
+      }
+      return false;
+    }
     setState(() => _isSaving = true);
 
     try {
@@ -232,7 +291,9 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
           }
         } else {
           // Create new record
-          final mapelSuffix = _hasMataPelajaran ? '_${widget.mataPelajaran}' : '';
+          final mapelSuffix = _hasMataPelajaran
+              ? '_${widget.mataPelajaran!.replaceAll('/', '_')}'
+              : '';
           final absensiId = 'abs_${siswa.id}_${dateStr}$mapelSuffix';
           final absensi = Absensi(
             id: absensiId,
@@ -264,17 +325,19 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
       if (_isSemuaKelas) {
         final allAbsensi = await _fs.getAbsensiByDate(widget.tanggal);
         updatedAbsensi = _hasMataPelajaran
-            ? allAbsensi.where((a) => a.mataPelajaran == widget.mataPelajaran).toList()
+            ? allAbsensi
+                .where((a) => a.mataPelajaran == widget.mataPelajaran)
+                .toList()
             : allAbsensi;
       } else {
         updatedAbsensi = _hasMataPelajaran
             ? await _fs.getAbsensiByKelasAndMapelAndDate(
-                widget.kelas,
+                _resolvedKelas,
                 widget.mataPelajaran!,
                 widget.tanggal,
               )
             : await _fs.getAbsensiByKelasAndDate(
-                widget.kelas,
+                _resolvedKelas,
                 widget.tanggal,
               );
       }
@@ -287,7 +350,9 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
         if (showToast) {
           ToastService.show(
             context,
-            message: _isSemuaKelas ? '✅ Absensi berhasil disimpan' : '✅ Absensi kelas ${widget.kelas} berhasil disimpan',
+            message: _isSemuaKelas
+                ? '✅ Absensi berhasil disimpan'
+                : '✅ Absensi kelas ${widget.kelas} berhasil disimpan',
           );
         }
       }
@@ -334,16 +399,18 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
 
       if (_hasMataPelajaran) {
         await _fs.lockMapel(
-          widget.kelas, widget.mataPelajaran!, widget.tanggal, userId);
+            _resolvedKelas, widget.mataPelajaran!, widget.tanggal, userId);
       } else {
-        await _fs.lockKelas(widget.kelas, widget.tanggal, userId);
+        await _fs.lockKelas(_resolvedKelas, widget.tanggal, userId);
       }
 
       if (mounted) {
         setState(() => _isLocked = true);
         ToastService.show(
           context,
-          message: _isSemuaKelas ? '🔒 Absensi telah dikunci' : '🔒 Absensi kelas ${widget.kelas} telah dikunci',
+          message: _isSemuaKelas
+              ? '🔒 Absensi telah dikunci'
+              : '🔒 Absensi kelas ${widget.kelas} telah dikunci',
         );
       }
     } catch (e) {
@@ -361,13 +428,11 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
   Future<void> _kirimNotifikasi() async {
     if (_isSendingNotif || _notifikasiSent) return;
 
-    // Filter: hanya siswa dengan HP orang tua DAN status hadir/izin/sakit
-    final siswaDenganHp = _siswaList
-        .where((s) {
+    // Filter: hanya siswa dengan HP orang tua DAN status yang sudah diisi
+    final siswaDenganHp = _siswaList.where((s) {
       final status = _statusMap[s.id] ?? 'alpa';
-      return s.hpOrtu.trim().isNotEmpty && (status == 'hadir' || status == 'izin' || status == 'sakit');
-    })
-        .toList();
+      return s.hpOrtu.trim().isNotEmpty && status.isNotEmpty;
+    }).toList();
 
     if (siswaDenganHp.isEmpty) {
       if (!mounted) return;
@@ -419,12 +484,10 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
 
     for (final siswa in siswaDenganHp) {
       final status = _statusMap[siswa.id] ?? 'alpa';
-      final statusLabel = _statusLabel(status);
-
       final berhasil = await WhatsAppService.kirimNotifikasiRekapAbsensi(
         hpOrtu: siswa.hpOrtu,
         namaSiswa: siswa.nama,
-        status: statusLabel,
+        status: status,
         tanggal: todayStr,
         mataPelajaran: widget.mataPelajaran,
         guruNama: auth.guru?.nama ?? auth.admin?.nama,
@@ -434,9 +497,11 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
       if (berhasil) {
         terkirim++;
         // Update dikirim flag pada absensi record
-        final existing = _existingAbsensi.where((a) => a.siswaId == siswa.id).firstOrNull;
+        final existing =
+            _existingAbsensi.where((a) => a.siswaId == siswa.id).firstOrNull;
         if (existing != null && !existing.dikirim) {
-          updateDikirimOps.add(_fs.updateAbsensi(existing.id, {'dikirim': true}));
+          updateDikirimOps
+              .add(_fs.updateAbsensi(existing.id, {'dikirim': true}));
         }
       } else {
         gagal++;
@@ -452,9 +517,9 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
     if (_hasMataPelajaran) {
       // Untuk flow 'semua kelas' (kelas=''), tetap tandai per mapel
       await _fs.markNotifikasiMapelSent(
-          widget.kelas, widget.mataPelajaran!, widget.tanggal);
+          _resolvedKelas, widget.mataPelajaran!, widget.tanggal);
     } else if (!_isSemuaKelas) {
-      await _fs.markNotifikasiKelasSent(widget.kelas, widget.tanggal);
+      await _fs.markNotifikasiKelasSent(_resolvedKelas, widget.tanggal);
     }
 
     if (!mounted) return;
@@ -528,23 +593,23 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
               margin: const EdgeInsets.only(right: 12),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: AppColors.warning.withValues(alpha: 0.15),
+                color: AppColors.primary.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: AppColors.warning.withValues(alpha: 0.3),
+                  color: AppColors.primary.withValues(alpha: 0.3),
                 ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.lock, size: 14, color: AppColors.warning),
+                  Icon(Icons.lock, size: 14, color: AppColors.primary),
                   const SizedBox(width: 4),
                   Text(
                     'Terkunci',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.warning,
+                      color: AppColors.primary,
                     ),
                   ),
                 ],
@@ -571,7 +636,9 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              _isSemuaKelas ? 'Tidak ada siswa yang ditugaskan' : 'Tidak ada siswa di kelas ini',
+              _isSemuaKelas
+                  ? 'Tidak ada siswa yang ditugaskan'
+                  : 'Tidak ada siswa di kelas ini',
               style: const TextStyle(color: AppColors.muted, fontSize: 15),
             ),
           ],
@@ -581,6 +648,10 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
 
     return Column(
       children: [
+        // ── Jadwal Waktu Banner ──
+        if (_hasMataPelajaran && _jadwalList.isNotEmpty)
+          _buildJadwalBanner(),
+
         // ── Action Buttons ──
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -594,7 +665,8 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
                     onPressed: _isLocked ||
                             _isSaving ||
                             _isSendingNotif ||
-                            _notifikasiSent
+                            _notifikasiSent ||
+                            (!_isWaktuAbsensiValid && _hasMataPelajaran)
                         ? null
                         : _simpanAbsensi,
                     icon: _isSaving
@@ -628,7 +700,8 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
                 child: SizedBox(
                   height: 44,
                   child: ElevatedButton.icon(
-                    onPressed: _isLocked || _isSendingNotif || _notifikasiSent
+                    onPressed: _isLocked || _isSendingNotif || _notifikasiSent ||
+                            (!_isWaktuAbsensiValid && _hasMataPelajaran)
                         ? null
                         : _kunciAbsensi,
                     icon: Icon(
@@ -640,8 +713,9 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          _isLocked ? AppColors.muted.withValues(alpha: 0.2) : AppColors.warning,
+                      backgroundColor: _isLocked
+                          ? AppColors.muted.withValues(alpha: 0.2)
+                          : AppColors.warning,
                       foregroundColor:
                           _isLocked ? AppColors.muted : Colors.white,
                       elevation: 0,
@@ -661,44 +735,44 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
                     maxTilt: 8,
                     enableHover: !_isSendingNotif && !_notifikasiSent,
                     child: ElevatedButton.icon(
-                      onPressed: _isSendingNotif || _notifikasiSent
+                      onPressed: _isSendingNotif || _notifikasiSent ||
+                            (!_isWaktuAbsensiValid && _hasMataPelajaran)
                           ? null
                           : _kirimNotifikasi,
-                    icon: _isSendingNotif
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
+                      icon: _isSendingNotif
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Icon(
+                              _notifikasiSent
+                                  ? Icons.check_circle
+                                  : Icons.send_rounded,
+                              size: 18,
                             ),
-                          )
-                        : Icon(
-                            _notifikasiSent
-                                ? Icons.check_circle
-                                : Icons.send_rounded,
-                            size: 18,
-                          ),
-                    label: Text(
-                      _isSendingNotif
-                          ? 'Mengirim...'
-                          : _notifikasiSent
-                              ? 'Terkirim'
-                              : 'Kirim WA',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _notifikasiSent
-                          ? AppColors.success.withValues(alpha: 0.15)
-                          : AppColors.whatsapp,
-                      foregroundColor: _notifikasiSent
-                          ? AppColors.success
-                          : Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                      label: Text(
+                        _isSendingNotif
+                            ? 'Mengirim...'
+                            : _notifikasiSent
+                                ? 'Terkirim'
+                                : 'Kirim WA',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
-                    ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _notifikasiSent
+                            ? AppColors.success.withValues(alpha: 0.15)
+                            : AppColors.whatsapp,
+                        foregroundColor:
+                            _notifikasiSent ? AppColors.success : Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -790,7 +864,8 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
                         children: [
                           CircleAvatar(
                             radius: 14,
-                            backgroundColor: statusColor.withValues(alpha: 0.12),
+                            backgroundColor:
+                                statusColor.withValues(alpha: 0.12),
                             child: Text(
                               siswa.nama.isNotEmpty
                                   ? siswa.nama[0].toUpperCase()
@@ -832,7 +907,9 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
                                 ),
                                 const SizedBox(height: 1),
                                 Text(
-                                  _isSemuaKelas ? 'Kelas ${siswa.kelas} • ${siswa.nis}' : siswa.nis,
+                                  _isSemuaKelas
+                                      ? 'Kelas ${siswa.kelas} • ${siswa.nis}'
+                                      : siswa.nis,
                                   style: const TextStyle(
                                     color: AppColors.muted,
                                     fontSize: 10,
@@ -858,7 +935,9 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
                           return Padding(
                             padding: const EdgeInsets.only(left: 4),
                             child: GestureDetector(
-                              onTap: _isLocked || _isSendingNotif || _notifikasiSent
+                              onTap: _isLocked ||
+                                      _isSendingNotif ||
+                                      _notifikasiSent
                                   ? null
                                   : () => _setStatus(siswa.id, key),
                               child: AnimatedContainer(
@@ -871,9 +950,8 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
                                       : Colors.transparent,
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                    color: isSelected
-                                        ? color
-                                        : AppColors.border,
+                                    color:
+                                        isSelected ? color : AppColors.border,
                                     width: isSelected ? 2 : 1,
                                   ),
                                 ),
@@ -983,6 +1061,109 @@ class _AbsenKelasDetailScreenState extends State<AbsenKelasDetailScreen> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildJadwalBanner() {
+    // Ambil jadwal pertama yang valid atau yang paling awal
+    JadwalMapelInfo? jadwalAktif;
+    JadwalMapelInfo? jadwalTerakhir;
+    for (final j in _jadwalList) {
+      if (jadwalTerakhir == null) jadwalTerakhir = j;
+      if (isWaktuAbsensiValid(j)) {
+        jadwalAktif = j;
+        break;
+      }
+    }
+    // Fallback ke yang terakhir
+    jadwalAktif ??= jadwalTerakhir;
+    if (jadwalAktif == null) return const SizedBox.shrink();
+
+    final isExpired = !_isWaktuAbsensiValid;
+    final bgColor = isExpired
+        ? Colors.red.withValues(alpha: 0.08)
+        : Colors.green.withValues(alpha: 0.08);
+    final borderColor = isExpired
+        ? Colors.red.withValues(alpha: 0.2)
+        : Colors.green.withValues(alpha: 0.2);
+    final iconColor = isExpired ? Colors.red : Colors.green;
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isExpired
+                ? Icons.access_time_filled_rounded
+                : Icons.access_time_rounded,
+            size: 18,
+            color: iconColor,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${jadwalAktif.mataPelajaran} • Jam ke-${jadwalAktif.jamKe}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: iconColor,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Jadwal: ${jadwalAktif.rentangWaktu}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.foreground.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (isExpired)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'Waktu Habis',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.red,
+                ),
+              ),
+            )
+          else
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'Bisa Absen',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.green,
+                ),
+              ),
+            ),
         ],
       ),
     );

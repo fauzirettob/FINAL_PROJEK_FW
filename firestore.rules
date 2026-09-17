@@ -79,6 +79,7 @@ service cloud.firestore {
         && isString('role')
         && isTimestamp('createdAt');
 
+      // Admin atau guru itu sendiri bisa update data
       allow update: if (isOwner(userId) || isAdmin())
         && isString('nama')
         && isString('email');
@@ -196,6 +197,22 @@ service cloud.firestore {
     match /guru_piket/{docId} {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated();
+    }
+
+    // ─── ATTENDANCE OVERRIDES ──────────────────────────────
+    // Digunakan oleh admin untuk override waktu absensi per kelas+mapel+tanggal
+    match /attendance_overrides/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+        && hasFields(['kelas', 'mataPelajaran', 'tanggal', 'isOverridden', 'overriddenAt', 'expiresAt', 'overriddenBy'])
+        && isString('kelas')
+        && isString('mataPelajaran')
+        && isTimestamp('tanggal')
+        && isTimestamp('overriddenAt')
+        && isTimestamp('expiresAt')
+        && isString('overriddenBy');
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
     }
 
     // ─── DENY ─────────────────────────────────────────────

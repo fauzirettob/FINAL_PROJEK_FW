@@ -438,3 +438,130 @@ String? hariToJadwalKey(String hari) {
   };
   return map[hari];
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// JADWAL TIME LOOKUP — Untuk validasi waktu absensi
+// ═══════════════════════════════════════════════════════════════════
+
+/// Informasi jadwal waktu untuk sebuah mata pelajaran di tingkat tertentu.
+class JadwalMapelInfo {
+  final String mataPelajaran;
+  final String tingkat;
+  final int jamKe;
+  final String jamMulai; // Contoh: "09.00"
+  final String jamSelesai; // Contoh: "09.45"
+  final String keterangan; // Contoh: "Pelajaran"
+
+  const JadwalMapelInfo({
+    required this.mataPelajaran,
+    required this.tingkat,
+    required this.jamKe,
+    required this.jamMulai,
+    required this.jamSelesai,
+    this.keterangan = 'Pelajaran',
+  });
+
+  /// Format rentang waktu: "09.00 - 09.45"
+  String get rentangWaktu => '$jamMulai - $jamSelesai';
+
+  @override
+  String toString() => '$mataPelajaran ($tingkat) jam $jamMulai-$jamSelesai';
+}
+
+/// Mengambil jadwal waktu untuk mata pelajaran tertentu di tingkat tertentu.
+///
+/// Mengembalikan list karena satu mapel bisa muncul di beberapa slot waktu
+/// (misalnya B. Inggris di jam ke-3 dan jam ke-5).
+///
+/// Contoh:
+/// ```dart
+/// final jadwal = getJadwalMapelByTingkat('X', 'B. Inggris');
+/// // => [JadwalMapelInfo(jamKe:3, jamMulai:'09.00', jamSelesai:'09.45'), ...]
+/// ```
+List<JadwalMapelInfo> getJadwalMapelByTingkat(
+    String tingkat, String mataPelajaran) {
+  final result = <JadwalMapelInfo>[];
+  for (final slot in jadwalDefaultSeninKamis) {
+    final rawMap = slot['mapelPerKelas'];
+    final mapelPerKelas =
+        rawMap != null ? Map<String, dynamic>.from(rawMap) : null;
+    if (mapelPerKelas != null && mapelPerKelas.containsKey(tingkat)) {
+      final list = mapelPerKelas[tingkat];
+      if (list is List) {
+        final names = list
+            .map<String>((e) => e?.toString() ?? '')
+            .where((s) => s.isNotEmpty)
+            .toList();
+        if (names.contains(mataPelajaran)) {
+          result.add(JadwalMapelInfo(
+            mataPelajaran: mataPelajaran,
+            tingkat: tingkat,
+            jamKe: slot['jamKe'] ?? 0,
+            jamMulai: slot['jamMulai'] ?? '',
+            jamSelesai: slot['jamSelesai'] ?? '',
+            keterangan: slot['keterangan'] ?? 'Pelajaran',
+          ));
+        }
+      }
+    }
+  }
+  return result;
+}
+
+/// Mengambil jadwal waktu untuk mata pelajaran berdasarkan kelas siswa
+/// (contoh: '10' -> tingkat 'X').
+List<JadwalMapelInfo> getJadwalMapelByKelas(
+    String kelas, String mataPelajaran) {
+  final tingkat = kelasToTingkat(kelas);
+  if (tingkat == null) return [];
+  return getJadwalMapelByTingkat(tingkat, mataPelajaran);
+}
+
+/// Cek apakah waktu sekarang masih dalam rentang jadwal untuk mapel tertentu.
+///
+/// Mengembalikan true jika absensi boleh dilakukan (waktu sekarang
+/// masih <= jam selesai jadwal mapel).
+bool isWaktuAbsensiValid(JadwalMapelInfo jadwal) {
+  final now = DateTime.now();
+  // Parse jam selesai dari format "HH.mm"
+  final parts = jadwal.jamSelesai.split('.');
+  if (parts.length != 2) return false;
+  final jam = int.tryParse(parts[0]) ?? 0;
+  final menit = int.tryParse(parts[1]) ?? 0;
+  final jamSelesai = DateTime(now.year, now.month, now.day, jam, menit);
+  // Beri toleransi 15 menit setelah jam selesai
+  final batasAkhir = jamSelesai.add(const Duration(minutes: 15));
+  return now.isBefore(batasAkhir);
+}
+
+/// Mengambil semua slot jadwal untuk kelas tertentu yang berisi mapel
+/// (bukan istirahat/ishoma), dikembalikan sebagai JadwalMapelInfo.
+List<JadwalMapelInfo> getAllJadwalMapelByTingkat(String tingkat) {
+  final result = <JadwalMapelInfo>[];
+  for (final slot in jadwalDefaultSeninKamis) {
+    if (slot['jamKe'] == 0) continue; // Skip aktivitas non-pelajaran
+    final rawMap = slot['mapelPerKelas'];
+    final mapelPerKelas =
+        rawMap != null ? Map<String, dynamic>.from(rawMap) : null;
+    if (mapelPerKelas != null && mapelPerKelas.containsKey(tingkat)) {
+      final list = mapelPerKelas[tingkat];
+      if (list is List) {
+        final names = list
+            .map<String>((e) => e?.toString() ?? '')
+            .where((s) => s.isNotEmpty)
+            .toList();
+        for (final name in names) {
+          result.add(JadwalMapelInfo(
+            mataPelajaran: name,
+            tingkat: tingkat,
+            jamKe: slot['jamKe'] ?? 0,
+            jamMulai: slot['jamMulai'] ?? '',
+            jamSelesai: slot['jamSelesai'] ?? '',
+            keterangan: slot['keterangan'] ?? 'Pelajaran',
+          ));
+        }
+      }
+    }
+  }
+  return result;
+}

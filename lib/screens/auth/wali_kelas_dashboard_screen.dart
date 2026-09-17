@@ -1,8 +1,8 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../../theme/app_theme.dart';
 import '../../services/firestore_service.dart';
 import '../../widgets/animations.dart';
@@ -95,7 +95,7 @@ class _WaliKelasDashboardScreenState extends State<WaliKelasDashboardScreen> {
                                 ? (guru.fotoUrl!.startsWith('http')
                                     ? NetworkImage(guru.fotoUrl!)
                                         as ImageProvider
-                                    : (File(guru.fotoUrl!).existsSync()
+                                    : (!kIsWeb && File(guru.fotoUrl!).existsSync()
                                         ? FileImage(File(guru.fotoUrl!))
                                         : null))
                                 : null,
@@ -173,30 +173,72 @@ class _WaliKelasDashboardScreenState extends State<WaliKelasDashboardScreen> {
                         ? ((hadir / total) * 100).toStringAsFixed(0)
                         : '0';
 
-                    return EntranceAnimation(
-                      delay: const Duration(milliseconds: 100),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _StatCard(
-                              icon: Icons.people_alt_rounded,
-                              label: 'Total Siswa',
-                              value: total.toString(),
-                              animateValue: total,
-                              color: AppColors.accent,
-                            ),
+                    // Hitung alpa dan belum absen
+                    final alpa = absenKelas.where((a) => a.status == 'alpa').length;
+                    // Siswa yang belum ada absensi sama sekali hari ini
+                    final siswaIdsHadir = absenKelas
+                        .where((a) => a.status == 'hadir' || a.status == 'izin' || a.status == 'sakit')
+                        .map((a) => a.siswaId)
+                        .toSet();
+                    final belumAbsen = siswaKelas
+                        .where((s) => !siswaIdsHadir.contains(s.id))
+                        .length;
+
+                    return Column(
+                      children: [
+                        EntranceAnimation(
+                          delay: const Duration(milliseconds: 100),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _StatCard(
+                                  icon: Icons.people_alt_rounded,
+                                  label: 'Total Siswa',
+                                  value: total.toString(),
+                                  animateValue: total,
+                                  color: AppColors.accent,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _StatCard(
+                                  icon: Icons.check_circle_rounded,
+                                  label: 'Hadir Hari Ini',
+                                  value: '$hadir ($persen%)',
+                                  color: AppColors.success,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _StatCard(
-                              icon: Icons.check_circle_rounded,
-                              label: 'Hadir Hari Ini',
-                              value: '$hadir ($persen%)',
-                              color: AppColors.success,
-                            ),
+                        ),
+                        const SizedBox(height: 12),
+                        EntranceAnimation(
+                          delay: const Duration(milliseconds: 150),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _StatCard(
+                                  icon: Icons.cancel_rounded,
+                                  label: 'Alpa Hari Ini',
+                                  value: alpa.toString(),
+                                  animateValue: alpa,
+                                  color: Colors.red,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _StatCard(
+                                  icon: Icons.help_outline_rounded,
+                                  label: 'Belum Absen',
+                                  value: belumAbsen.toString(),
+                                  animateValue: belumAbsen,
+                                  color: AppColors.warning,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     );
                   },
                 );
@@ -348,14 +390,19 @@ class _WaliKelasDashboardScreenState extends State<WaliKelasDashboardScreen> {
       5: 'JUMAT',
     };
     final hariIni = hariMap[DateTime.now().weekday] ?? 'SENIN';
+    final isJumat = hariIni == 'JUMAT';
     final tingkat = kelasToTingkat(kelas);
 
+    // Ambil jadwal sesuai hari
+    final rawSlots = isJumat ? jadwalDefaultJumat : jadwalDefaultSeninKamis;
+
     // Filter slot yang punya mapel untuk tingkat ini
-    final slotsAktif = jadwalDefaultSeninKamis
-        .where((s) =>
-            s['mapelPerKelas'] != null &&
-            Map<String, dynamic>.from(s['mapelPerKelas'] as Map).containsKey(tingkat ?? ''))
-        .toList();
+    final slotsAktif = rawSlots.where((s) {
+      if (isJumat) return true; // Jumat: tampilkan semua slot
+      return s['mapelPerKelas'] != null &&
+          Map<String, dynamic>.from(s['mapelPerKelas'] as Map)
+              .containsKey(tingkat ?? '');
+    }).toList();
 
     return Container(
       width: double.infinity,
@@ -394,7 +441,7 @@ class _WaliKelasDashboardScreenState extends State<WaliKelasDashboardScreen> {
                       ),
                     ),
                     Text(
-                      '$hariIni • Kelas $kelas',
+                      '$hariIni \u2022 Kelas $kelas',
                       style: const TextStyle(
                         color: AppColors.muted,
                         fontSize: 12,
@@ -406,73 +453,73 @@ class _WaliKelasDashboardScreenState extends State<WaliKelasDashboardScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          if (hariIni == 'JUMAT')
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
+          ...slotsAktif.map((slot) {
+            final rawMap = slot['mapelPerKelas'];
+            final typedMap = rawMap != null ? Map<String, dynamic>.from(rawMap as Map) : null;
+            final mapelList = typedMap?[tingkat ?? ''];
+            final namaMapel = mapelList is List
+                ? mapelList.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList()
+                : <String>[];
+            final keterangan = slot['keterangan']?.toString() ?? '';
+            final isNonPel = keterangan.toLowerCase().contains('istirahat') ||
+                keterangan.toLowerCase().contains('ishoma') ||
+                keterangan.toLowerCase().contains('apel') ||
+                keterangan.toLowerCase().contains('break') ||
+                keterangan.toLowerCase().contains('lunch');
+            return Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFF0EA5E9).withValues(alpha: 0.05),
+                color: namaMapel.isNotEmpty
+                    ? const Color(0xFF0EA5E9).withValues(alpha: 0.04)
+                    : isNonPel
+                        ? AppColors.muted.withValues(alpha: 0.03)
+                        : AppColors.muted.withValues(alpha: 0.02),
                 borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Text(
-                'Jadwal hari Jumat (Kegiatan Khusus)\nLihat tab Jadwal untuk detail',
-                style: TextStyle(
-                    color: AppColors.muted,
-                    fontSize: 12,
-                    height: 1.5),
-              ),
-            )
-          else
-            ...slotsAktif.map((slot) {
-              final rawMap = slot['mapelPerKelas'];
-              final typedMap = rawMap != null ? Map<String, dynamic>.from(rawMap as Map) : null;
-              final mapelList = typedMap?[tingkat ?? ''];
-              final namaMapel = mapelList is List
-                  ? mapelList.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList()
-                  : <String>[];
-              return Container(
-                margin: const EdgeInsets.only(bottom: 6),
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.04),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                  ),
+                border: Border.all(
+                  color: namaMapel.isNotEmpty
+                      ? const Color(0xFF0EA5E9).withValues(alpha: 0.1)
+                      : AppColors.border,
                 ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        '${slot['jamMulai']}',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                        ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: namaMapel.isNotEmpty
+                          ? const Color(0xFF0EA5E9).withValues(alpha: 0.1)
+                          : AppColors.muted.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${slot['jamMulai']}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: namaMapel.isNotEmpty
+                            ? const Color(0xFF0EA5E9)
+                            : AppColors.muted,
                       ),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Jam ke-${slot['jamKe']}',
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: AppColors.muted,
-                              fontWeight: FontWeight.w600,
-                            ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Jam ke-${slot['jamKe']}',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: AppColors.muted,
+                            fontWeight: FontWeight.w600,
                           ),
+                        ),
+                        if (namaMapel.isNotEmpty)
                           Text(
-                            namaMapel.join(' • '),
+                            namaMapel.join(' \u2022 '),
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -480,14 +527,24 @@ class _WaliKelasDashboardScreenState extends State<WaliKelasDashboardScreen> {
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
+                          )
+                        else
+                          Text(
+                            keterangan,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isNonPel
+                                  ? AppColors.muted.withValues(alpha: 0.6)
+                                  : AppColors.muted.withValues(alpha: 0.5),
+                            ),
                           ),
-                        ],
-                      ),
+                      ],
                     ),
-                  ],
-                ),
-              );
-            }),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );

@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:csv/csv.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -17,6 +19,7 @@ import '../../widgets/tilt3d.dart';
 import '../../models/guru.dart';
 import '../../models/siswa.dart';
 import '../../models/jadwal_pelajaran.dart';
+import '../../providers/auth_provider.dart';
 
 class OlahDataScreen extends StatefulWidget {
   final FirestoreService? firestoreService;
@@ -30,12 +33,16 @@ class OlahDataScreen extends StatefulWidget {
 class _OlahDataScreenState extends State<OlahDataScreen> {
   late final FirestoreService _fs = widget.firestoreService ?? FirestoreService();
   String _searchGuru = '';
+  List<AttendanceOverride> _activeOverrides = [];
+  bool _isLoadingOverrides = false;
 
   // ─── Edit Data Guru ──────────────────────────────────────────
   Future<void> _editGuru(Guru guru) async {
     final nipController = TextEditingController(text: guru.nip);
     final namaController = TextEditingController(text: guru.nama);
     final emailController = TextEditingController(text: guru.email);
+    final passwordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
     List<String> selectedKelas = List<String>.from(guru.kelasList);
     String? selectedWaliKelas = guru.waliKelas;
     final availableKelas = List<String>.from(kategoriKelas);
@@ -426,6 +433,48 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
                             ),
                           ),
                         ],
+                        const SizedBox(height: 16),
+                        // Password Baru (Opsional)
+                        const Text('Password Baru (Opsional)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Kosongkan jika tidak ingin mengubah password',
+                          style: TextStyle(color: AppColors.muted.withValues(alpha: 0.7), fontSize: 12),
+                        ),
+                        const SizedBox(height: 6),
+                        TextFormField(
+                          controller: passwordController,
+                          obscureText: true,
+                          decoration: const InputDecoration(
+                            hintText: 'Masukan password baru',
+                            prefixIcon: Icon(Icons.lock_outline, size: 20),
+                            isDense: true,
+                          ),
+                          validator: (v) {
+                            if (v != null && v.isNotEmpty && v.length < 6) return 'Password minimal 6 karakter';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        // Konfirmasi Password
+                        const Text('Konfirmasi Password', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                        const SizedBox(height: 6),
+                        TextFormField(
+                          controller: confirmPasswordController,
+                          obscureText: true,
+                          decoration: const InputDecoration(
+                            hintText: 'Ulangi password baru',
+                            prefixIcon: Icon(Icons.lock_outline, size: 20),
+                            isDense: true,
+                          ),
+                          validator: (v) {
+                            if (passwordController.text.isNotEmpty) {
+                              if (v == null || v.isEmpty) return 'Konfirmasi tidak boleh kosong';
+                              if (v != passwordController.text) return 'Password tidak cocok';
+                            }
+                            return null;
+                          },
+                        ),
                         const SizedBox(height: 24),
                       ],
                     ),
@@ -448,6 +497,7 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
                           'mapelList': selectedMapel,
                           'kelasList': selectedKelas,
                           'waliKelas': selectedWaliKelas,
+                          'password': passwordController.text.trim(),
                         });
                       },
                       style: ElevatedButton.styleFrom(
@@ -479,6 +529,7 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
 
     if (result == null) return;
 
+    // ── Step 1: Update data guru di Firestore ──
     try {
       await _fs.updateGuru(guru.id, {
         'nip': result['nip'],
@@ -488,19 +539,56 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
         'kelasList': result['kelasList'],
         'waliKelas': result['waliKelas'],
       });
-      if (!mounted) return;
-      setState(() {}); // Refresh the list
-      ToastService.show(
-        context,
-        message: 'Data guru ${result['nama']} berhasil diupdate',
-      );
     } catch (e) {
       if (!mounted) return;
       ToastService.show(
         context,
-        message: 'Gagal update: $e',
+        message: 'Gagal update data guru: $e',
         backgroundColor: Colors.red.shade600,
         icon: Icons.error_outline,
+      );
+      return;
+    }
+
+    // ── Step 2: Update password via Cloud Function (jika diisi) ──
+    final newPassword = result['password'] as String?;
+    String? passwordError;
+    if (newPassword != null && newPassword.isNotEmpty) {
+      try {
+        final callable = FirebaseFunctions.instance.httpsCallable('resetGuruPassword');
+        await callable.call({
+          'guruUid': guru.id,
+          'newPassword': newPassword,
+        });
+      } on FirebaseFunctionsException catch (e) {
+        debugPrint('resetGuruPassword error [${e.code}]: ${e.message}');
+        passwordError = e.message ?? 'Gagal update password';
+      } catch (e) {
+        debugPrint('resetGuruPassword unexpected error: $e');
+        passwordError = 'Gagal update password: $e';
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {}); // Refresh the list
+
+    // ── Step 3: Tampilkan hasil ──
+    if (passwordError != null) {
+      ToastService.show(
+        context,
+        message: 'Data guru berhasil diupdate, tapi password gagal: $passwordError',
+        backgroundColor: Colors.orange.shade600,
+        icon: Icons.warning_amber_rounded,
+      );
+    } else if (newPassword != null && newPassword.isNotEmpty) {
+      ToastService.show(
+        context,
+        message: 'Data guru & password ${result['nama']} berhasil diupdate',
+      );
+    } else {
+      ToastService.show(
+        context,
+        message: 'Data guru ${result['nama']} berhasil diupdate',
       );
     }
   }
@@ -747,6 +835,117 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
     }
   }
 
+  // ─── Approval Absensi Ulang Guru ──────────────────────────
+  Future<void> _loadActiveOverrides() async {
+    setState(() => _isLoadingOverrides = true);
+    try {
+      final overrides = await _fs.getActiveOverridesForDate(DateTime.now());
+      if (mounted) {
+        setState(() {
+          _activeOverrides = overrides;
+          _isLoadingOverrides = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingOverrides = false);
+    }
+  }
+
+  Future<void> _approveGuruAbsensi() async {
+    // Load semua guru
+    final allGuru = await _fs.getAllGuru();
+    if (!mounted) return;
+
+    if (allGuru.isEmpty) {
+      ToastService.show(context, message: 'Tidak ada data guru');
+      return;
+    }
+
+    final selectedGuru = await showDialog<Guru>(
+      context: context,
+      builder: (ctx) => _GuruPickerDialog(guruList: allGuru),
+    );
+    if (selectedGuru == null || !mounted) return;
+
+    // Pilih durasi
+    final durasi = await showDialog<int>(
+      context: context,
+      builder: (ctx) => _DurasiPickerDialog(),
+    );
+    if (durasi == null || !mounted) return;
+
+    // Pilih kelas + mapel untuk approval
+    final kelasMapelResult = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (ctx) => _KelasMapelPickerDialog(
+        guru: selectedGuru,
+        fs: _fs,
+      ),
+    );
+    if (kelasMapelResult == null || !mounted) return;
+
+    final kelas = kelasMapelResult['kelas']!;
+    final mapel = kelasMapelResult['mapel']!;
+
+    try {
+      final auth = context.read<AuthProvider>();
+      final adminId = auth.admin?.id ?? 'unknown';
+      await _fs.overrideAttendanceTime(
+        kelas, mapel, DateTime.now(), adminId,
+        durationMinutes: durasi,
+      );
+      if (mounted) {
+        ToastService.show(
+          context,
+          message: '✅ ${selectedGuru.nama} diizinkan absensi ulang $mapel ($durasi menit)',
+        );
+        _loadActiveOverrides();
+      }
+    } catch (e) {
+      if (mounted) {
+        ToastService.show(
+          context,
+          message: 'Gagal approve: $e',
+          backgroundColor: Colors.red.shade600,
+          icon: Icons.error_outline,
+        );
+      }
+    }
+  }
+
+  Future<void> _revokeOverride(AttendanceOverride override) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AwesomeConfirmDialog(
+        title: 'Batalkan Approval',
+        message: 'Batalkan approval absensi ulang untuk ${override.mataPelajaran} (Kelas ${override.kelas})?',
+        icon: Icons.cancel_outlined,
+        color: Colors.red,
+        confirmText: 'Batalkan',
+        confirmIcon: Icons.close,
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await _fs.removeAttendanceTimeOverride(
+          override.kelas, override.mataPelajaran, override.tanggal);
+      if (mounted) {
+        ToastService.show(context, message: 'Approval dibatalkan');
+        _loadActiveOverrides();
+      }
+    } catch (e) {
+      if (mounted) {
+        ToastService.show(
+          context,
+          message: 'Gagal: $e',
+          backgroundColor: Colors.red.shade600,
+          icon: Icons.error_outline,
+        );
+      }
+    }
+  }
+
   // ─── Ekspor Guru ke CSV ─────────────────────────────────
   Future<void> _exportGuru() async {
     await _showLoadingDialog('Menyiapkan data guru...');
@@ -862,10 +1061,23 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
   }) async {
     // Encode ke CSV dengan UTF-8 BOM agar Excel bisa membaca encoding Indonesia
     final csvContent = Csv().encode(rows);
+
     final bom = utf8.encode('\uFEFF');
     final bytes = [...bom, ...utf8.encode(csvContent)];
 
-    // Simpan ke temporary directory
+    if (kIsWeb) {
+      // Untuk web, tampilkan toast bahwa fitur export belum tersedia
+      if (!mounted) return;
+      ToastService.show(
+        context,
+        message: 'Export CSV belum didukung di web. Gunakan aplikasi mobile.',
+        backgroundColor: Colors.orange.shade600,
+        icon: Icons.info_outline,
+      );
+      return;
+    }
+
+    // Simpan ke temporary directory (mobile only)
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}/$filename.csv');
     await file.writeAsBytes(bytes);
@@ -932,6 +1144,9 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
           // ─── Stats Row ──────────────────────────────────────
           _buildStatsRow(),
           const SizedBox(height: 12),
+          // ─── Approval Absensi Section ───────────────────────
+          _buildApprovalSection(),
+          const SizedBox(height: 8),
           // ─── Search ──────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -950,6 +1165,145 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
             child: _buildGuruList(),
           ),
         ],
+      ),
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadActiveOverrides();
+  }
+
+  // ─── Approval Absensi Section ────────────────────────────────
+  Widget _buildApprovalSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.green.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.timer_rounded, color: Colors.green, size: 20),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Approval Absensi Ulang',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      Text(
+                        'Izinkan guru absensi ulang dengan batas waktu',
+                        style: TextStyle(color: AppColors.muted, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: _approveGuruAbsensi,
+                  icon: const Icon(Icons.add_rounded, size: 16),
+                  label: const Text('Approve', style: TextStyle(fontSize: 12)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    elevation: 0,
+                  ),
+                ),
+              ],
+            ),
+            if (_isLoadingOverrides) ...[
+              const SizedBox(height: 10),
+              const Center(
+                child: SizedBox(
+                  width: 20, height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ] else if (_activeOverrides.isEmpty) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.muted.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Tidak ada approval aktif hari ini',
+                  style: TextStyle(color: AppColors.muted, fontSize: 12),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ] else ...[
+              const SizedBox(height: 10),
+              ..._activeOverrides.map((override) => Container(
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.orange.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.person_rounded, color: Colors.orange, size: 16),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            override.mataPelajaran,
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                            'Kelas ${override.kelas} • Sisa ${override.remainingTime}',
+                            style: const TextStyle(fontSize: 10, color: AppColors.muted),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => _revokeOverride(override),
+                      icon: const Icon(Icons.cancel_outlined, size: 18, color: Colors.red),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                      tooltip: 'Batalkan',
+                    ),
+                  ],
+                ),
+              )),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -1014,7 +1368,9 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
               .where((g) =>
                   g.nama.toLowerCase().contains(_searchGuru) ||
                   g.nip.toLowerCase().contains(_searchGuru) ||
-                  g.email.toLowerCase().contains(_searchGuru))
+                  g.email.toLowerCase().contains(_searchGuru) ||
+                  g.mapelList.any((m) => m.toLowerCase().contains(_searchGuru)) ||
+                  g.kelasList.any((k) => k.toLowerCase().contains(_searchGuru)))
               .toList();
         }
 
@@ -1036,7 +1392,6 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
           itemCount: list.length,
           itemBuilder: (context, index) {
             final guru = list[index];
-            final createdAt = DateFormat('dd MMM yyyy').format(guru.createdAt);
 
             return Tilt3D(
               child: Card(
@@ -1054,7 +1409,7 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    // Info (Nama saja)
+                    // Info (Nama + Mapel + Kelas)
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1063,6 +1418,27 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
                             guru.nama,
                             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                           ),
+                          const SizedBox(height: 2),
+                          if (guru.mapelList.isNotEmpty)
+                            Text(
+                              guru.mapelList.join(', '),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.primary.withValues(alpha: 0.8),
+                              ),
+                            ),
+                          if (guru.kelasList.isNotEmpty)
+                            Text(
+                              'Kelas: ${guru.kelasList.join(', ')}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: AppColors.muted,
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -1146,6 +1522,225 @@ class _MiniStatCard extends StatelessWidget {
         ],
         ),
       ),
+    );
+  }
+}
+
+// ─── Dialog Pilih Guru ───────────────────────────────────────
+class _GuruPickerDialog extends StatefulWidget {
+  final List<Guru> guruList;
+  const _GuruPickerDialog({required this.guruList});
+  @override
+  State<_GuruPickerDialog> createState() => _GuruPickerDialogState();
+}
+
+class _GuruPickerDialogState extends State<_GuruPickerDialog> {
+  String _search = '';
+  @override
+  Widget build(BuildContext context) {
+    final filtered = widget.guruList
+        .where((g) => g.nama.toLowerCase().contains(_search.toLowerCase()))
+        .toList();
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Text('Pilih Guru', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+      content: SizedBox(
+        width: double.maxFinite,
+        height: 350,
+        child: Column(
+          children: [
+            TextField(
+              onChanged: (v) => setState(() => _search = v),
+              decoration: const InputDecoration(
+                hintText: 'Cari nama guru...',
+                prefixIcon: Icon(Icons.search, size: 18),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: ListView.builder(
+                itemCount: filtered.length,
+                itemBuilder: (ctx, i) {
+                  final guru = filtered[i];
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: AppColors.warning.withValues(alpha: 0.15),
+                      child: Text(guru.nama[0].toUpperCase(),
+                          style: const TextStyle(color: AppColors.warning, fontSize: 12)),
+                    ),
+                    title: Text(guru.nama, style: const TextStyle(fontSize: 13)),
+                    subtitle: Text(guru.mapelList.join(', '),
+                        style: const TextStyle(fontSize: 10), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    onTap: () => Navigator.pop(ctx, guru),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+      ],
+    );
+  }
+}
+
+// ─── Dialog Pilih Durasi ──────────────────────────────────────
+class _DurasiPickerDialog extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Text('Batas Waktu', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Pilih durasi waktu absensi ulang:',
+              style: TextStyle(fontSize: 13)),
+          const SizedBox(height: 12),
+          ...[5, 10, 15, 30].map((menit) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => Navigator.pop(context, menit),
+                icon: const Icon(Icons.timer_rounded, size: 18),
+                label: Text('$menit Menit'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          )),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+      ],
+    );
+  }
+}
+
+// ─── Dialog Pilih Kelas & Mapel ───────────────────────────────
+class _KelasMapelPickerDialog extends StatefulWidget {
+  final Guru guru;
+  final FirestoreService fs;
+  const _KelasMapelPickerDialog({required this.guru, required this.fs});
+  @override
+  State<_KelasMapelPickerDialog> createState() => _KelasMapelPickerDialogState();
+}
+
+class _KelasMapelPickerDialogState extends State<_KelasMapelPickerDialog> {
+  String? _selectedKelas;
+  String? _selectedMapel;
+  List<String> _availableMapel = [];
+
+  void _updateMapel() {
+    if (_selectedKelas == null) {
+      _availableMapel = [];
+    } else {
+      // _selectedKelas sudah berupa tingkat (X/XI/XII),
+      // gunakan getMapelByTingkat bukan getMapelByKelas.
+      final allMapel = getMapelByTingkat(_selectedKelas!);
+      // Filter berdasarkan mapel yang diajar guru
+      _availableMapel = allMapel
+          .where((m) => widget.guru.mapelList.contains(m))
+          .toList();
+    }
+    _selectedMapel = null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Kelas dari guru
+    final kelasList = widget.guru.kelasList
+        .map((k) => kelasToTingkat(k))
+        .whereType<String>()
+        .toList();
+
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Text('Pilih Kelas & Mapel', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Kelas:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: kelasList.map((k) {
+              final sel = _selectedKelas == k;
+              return GestureDetector(
+                onTap: () => setState(() {
+                  _selectedKelas = sel ? null : k;
+                  _updateMapel();
+                }),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: sel ? AppColors.primary.withValues(alpha: 0.15) : AppColors.card,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: sel ? AppColors.primary : AppColors.border),
+                  ),
+                  child: Text(k, style: TextStyle(
+                    fontSize: 12, fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+                    color: sel ? AppColors.primary : AppColors.foreground,
+                  )),
+                ),
+              );
+            }).toList(),
+          ),
+          if (_selectedKelas != null) ...[
+            const SizedBox(height: 14),
+            const Text('Mata Pelajaran:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            if (_availableMapel.isEmpty)
+              const Text('Tidak ada mapel untuk kelas ini', style: TextStyle(fontSize: 11, color: AppColors.muted))
+            else
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: _availableMapel.map((m) {
+                  final sel = _selectedMapel == m;
+                  return GestureDetector(
+                    onTap: () => setState(() => _selectedMapel = sel ? null : m),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: sel ? Colors.green.withValues(alpha: 0.15) : AppColors.card,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: sel ? Colors.green : AppColors.border),
+                      ),
+                      child: Text(m, style: TextStyle(
+                        fontSize: 11, fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+                        color: sel ? Colors.green : AppColors.foreground,
+                      )),
+                    ),
+                  );
+                }).toList(),
+              ),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+        ElevatedButton(
+          onPressed: (_selectedKelas != null && _selectedMapel != null)
+              ? () => Navigator.pop(context, {'kelas': _selectedKelas!, 'mapel': _selectedMapel!})
+              : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          child: const Text('Approve'),
+        ),
+      ],
     );
   }
 }
