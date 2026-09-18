@@ -1147,6 +1147,9 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
           // ─── Approval Absensi Section ───────────────────────
           _buildApprovalSection(),
           const SizedBox(height: 8),
+          // ─── Perpindahan Kelas Section ─────────────────────────
+          _buildPerpindahanKelasSection(),
+          const SizedBox(height: 8),
           // ─── Search ──────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -1173,6 +1176,473 @@ class _OlahDataScreenState extends State<OlahDataScreen> {
   void initState() {
     super.initState();
     _loadActiveOverrides();
+  }
+
+  // ─── Perpindahan Kelas Section ───────────────────────────────
+  Widget _buildPerpindahanKelasSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.swap_horiz_rounded, color: Color(0xFF8B5CF6), size: 20),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Perpindahan Kelas',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      Text(
+                        'Pindahkan semua siswa dari satu kelas ke kelas lain',
+                        style: TextStyle(color: AppColors.muted, fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: _showPerpindahanKelasDialog,
+                  icon: const Icon(Icons.swap_horiz_rounded, size: 16),
+                  label: const Text('Pindah', style: TextStyle(fontSize: 12)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF8B5CF6),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    elevation: 0,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Dialog Perpindahan Kelas ──────────────────────────────────
+  Future<void> _showPerpindahanKelasDialog() async {
+    String? dariKelas;
+    String? keKelas;
+    int jumlahSiswa = 0;
+    bool isLoading = false;
+    bool isProcessing = false;
+
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Container(
+          height: MediaQuery.of(ctx).size.height * 0.7,
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(24),
+              topRight: Radius.circular(24),
+            ),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Container(
+                margin: const EdgeInsets.only(top: 10),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(Icons.swap_horiz_rounded, color: Color(0xFF8B5CF6), size: 24),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Perpindahan Kelas',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: AppColors.foreground,
+                            ),
+                          ),
+                          Text(
+                            'Pindahkan semua siswa dari satu kelas ke kelas lain',
+                            style: TextStyle(color: AppColors.muted, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(ctx),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.border.withValues(alpha: 0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.close, size: 18, color: AppColors.muted),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Form Content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Dari Kelas
+                      const Text(
+                        'Dari Kelas',
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: kategoriKelas.map((kelas) {
+                          final isSelected = dariKelas == kelas;
+                          return GestureDetector(
+                            onTap: isProcessing ? null : () async {
+                              setModalState(() {
+                                dariKelas = isSelected ? null : kelas;
+                                keKelas = null;
+                                jumlahSiswa = 0;
+                              });
+                              // Load jumlah siswa
+                              if (dariKelas != null) {
+                                setModalState(() => isLoading = true);
+                                final count = await _fs.getJumlahSiswaPerKelas(dariKelas!);
+                                if (ctx.mounted) {
+                                  setModalState(() {
+                                    jumlahSiswa = count;
+                                    isLoading = false;
+                                  });
+                                }
+                              }
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? const Color(0xFF8B5CF6).withValues(alpha: 0.15)
+                                    : AppColors.card,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isSelected ? const Color(0xFF8B5CF6) : AppColors.border,
+                                  width: isSelected ? 2 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isSelected ? Icons.check_circle : Icons.circle_outlined,
+                                    size: 18,
+                                    color: isSelected ? const Color(0xFF8B5CF6) : AppColors.muted,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Kelas $kelas',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                                      color: isSelected ? const Color(0xFF8B5CF6) : AppColors.foreground,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      // Info jumlah siswa
+                      if (dariKelas != null) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.15)),
+                          ),
+                          child: isLoading
+                              ? const Center(
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                )
+                              : Row(
+                                  children: [
+                                    const Icon(Icons.people_alt_rounded, size: 18, color: Color(0xFF8B5CF6)),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      '$jumlahSiswa siswa di kelas $dariKelas',
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF8B5CF6),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ],
+                      const SizedBox(height: 20),
+                      // Ke Kelas
+                      const Text(
+                        'Ke Kelas',
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: kategoriKelas
+                            .where((k) => k != dariKelas)
+                            .map((kelas) {
+                          final isSelected = keKelas == kelas;
+                          return GestureDetector(
+                            onTap: isProcessing || dariKelas == null ? null : () {
+                              setModalState(() => keKelas = isSelected ? null : kelas);
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? Colors.green.withValues(alpha: 0.15)
+                                    : AppColors.card,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isSelected ? Colors.green : AppColors.border,
+                                  width: isSelected ? 2 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isSelected ? Icons.check_circle : Icons.circle_outlined,
+                                    size: 18,
+                                    color: isSelected ? Colors.green : AppColors.muted,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Kelas $kelas',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                                      color: isSelected ? Colors.green : AppColors.foreground,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      // Preview perpindahan
+                      if (dariKelas != null && keKelas != null && !isLoading) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.orange.withValues(alpha: 0.2)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 20),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '$jumlahSiswa siswa akan dipindahkan',
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.orange,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Dari kelas $dariKelas ke kelas $keKelas',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.orange.withValues(alpha: 0.8),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              // Footer
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: (dariKelas != null && keKelas != null && !isProcessing)
+                          ? null
+                          : null,
+                      color: (dariKelas != null && keKelas != null && !isProcessing)
+                          ? const Color(0xFF8B5CF6)
+                          : AppColors.muted.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: ElevatedButton(
+                      onPressed: (dariKelas != null && keKelas != null && !isProcessing)
+                          ? () async {
+                              // Konfirmasi
+                              final confirmed = await showDialog<bool>(
+                                context: ctx,
+                                builder: (confirmCtx) => AlertDialog(
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                  title: const Text(
+                                    'Konfirmasi Perpindahan',
+                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                  ),
+                                  content: Text(
+                                    'Pindahkan $jumlahSiswa siswa dari kelas $dariKelas ke kelas $keKelas?\n\nTindakan ini tidak dapat dibatalkan.',
+                                    style: const TextStyle(fontSize: 14, height: 1.5),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(confirmCtx, false),
+                                      child: const Text('Batal'),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () => Navigator.pop(confirmCtx, true),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(0xFF8B5CF6),
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                      child: const Text('Ya, Pindahkan'),
+                                    ),
+                                  ],
+                                ),
+                              );
+
+                              if (confirmed == true) {
+                                setModalState(() => isProcessing = true);
+                                try {
+                                  final count = await _fs.pindahkanSiswa(dariKelas!, keKelas!);
+                                  if (ctx.mounted) {
+                                    Navigator.pop(ctx, {
+                                      'dariKelas': dariKelas!,
+                                      'keKelas': keKelas!,
+                                      'jumlah': count,
+                                    });
+                                  }
+                                } catch (e) {
+                                  if (ctx.mounted) {
+                                    ToastService.show(
+                                      ctx,
+                                      message: 'Gagal memindahkan siswa: $e',
+                                      backgroundColor: Colors.red.shade600,
+                                      icon: Icons.error_outline,
+                                    );
+                                    setModalState(() => isProcessing = false);
+                                  }
+                                }
+                              }
+                            }
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        foregroundColor: Colors.white,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 0,
+                      ),
+                      child: isProcessing
+                          ? const SizedBox(
+                              width: 20, height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Text(
+                              'Pindahkan Siswa',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    // Tampilkan hasil setelah dialog ditutup
+    if (result != null && mounted) {
+      final dari = result['dariKelas'] as String;
+      final ke = result['keKelas'] as String;
+      final jumlah = result['jumlah'] as int;
+
+      ToastService.show(
+        context,
+        message: '✅ $jumlah siswa berhasil dipindahkan dari kelas $dari ke kelas $ke',
+      );
+    }
   }
 
   // ─── Approval Absensi Section ────────────────────────────────

@@ -43,6 +43,33 @@ class FirestoreService {
         .toList();
   }
 
+  /// Pindahkan semua siswa dari satu kelas ke kelas lain secara batch.
+  /// Mengembalikan jumlah siswa yang berhasil dipindahkan.
+  Future<int> pindahkanSiswa(String dariKelas, String keKelas) async {
+    final snapshot = await _db
+        .collection('siswa')
+        .where('kelas', isEqualTo: dariKelas)
+        .get();
+
+    if (snapshot.docs.isEmpty) return 0;
+
+    final batch = _db.batch();
+    for (final doc in snapshot.docs) {
+      batch.update(doc.reference, {'kelas': keKelas});
+    }
+    await batch.commit();
+    return snapshot.docs.length;
+  }
+
+  /// Hitung jumlah siswa di kelas tertentu.
+  Future<int> getJumlahSiswaPerKelas(String kelas) async {
+    final snapshot = await _db
+        .collection('siswa')
+        .where('kelas', isEqualTo: kelas)
+        .get();
+    return snapshot.docs.length;
+  }
+
   Future<void> updateSiswa(String id, Map<String, dynamic> data) async {
     await _db.collection('siswa').doc(id).update(data);
   }
